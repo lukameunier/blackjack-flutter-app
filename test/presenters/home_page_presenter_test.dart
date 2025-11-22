@@ -22,7 +22,21 @@ void main() {
     presenter = HomePagePresenter(mockView);
   });
 
+  // Helper function to set up a known, non-random hand
+  void _setUpKnownHand(List<Card> playerCards) {
+    presenter.board.player.clearHand();
+    for (var card in playerCards) {
+      presenter.board.player.addCard(card);
+    }
+    // Ensure dealer doesn't have blackjack to avoid auto-ending the round
+    presenter.board.dealer.clearHand();
+    presenter.board.dealer.addCard(Card(rank: Rank.two, suit: Suit.clubs));
+    presenter.board.dealer.addCard(Card(rank: Rank.three, suit: Suit.clubs));
+    presenter.board.isRoundOver = false;
+  }
+
   test('When hit() is called, player receives a card and view is refreshed', () {
+    _setUpKnownHand([Card(rank: Rank.five, suit: Suit.hearts), Card(rank: Rank.ten, suit: Suit.clubs)]);
     final initialCardCount = presenter.board.player.activeHand.cards.length;
 
     presenter.hit();
@@ -32,6 +46,7 @@ void main() {
   });
 
   test('When stand() is called, the round is over and view is refreshed', () {
+    _setUpKnownHand([Card(rank: Rank.five, suit: Suit.hearts), Card(rank: Rank.ten, suit: Suit.clubs)]);
     presenter.stand();
 
     expect(presenter.board.isRoundOver, isTrue);
@@ -39,6 +54,7 @@ void main() {
   });
 
   test('When doubleDown() is called, player gets one card, round ends, and view is refreshed', () {
+    _setUpKnownHand([Card(rank: Rank.five, suit: Suit.hearts), Card(rank: Rank.ten, suit: Suit.clubs)]);
     final initialCardCount = presenter.board.player.activeHand.cards.length;
 
     presenter.doubleDown();
@@ -60,20 +76,26 @@ void main() {
     expect(mockView.hasBeenRefreshed, isTrue);
   });
 
-  test('When split() is called, player has two hands and view is refreshed', () {
-    // Arrange
-    final player = presenter.board.player;
-    player.clearHand();
-    player.addCard(Card(rank: Rank.ace, suit: Suit.clubs));
-    player.addCard(Card(rank: Rank.ace, suit: Suit.spades));
+  group('Split Action', () {
+    test('When split() is called on a valid pair, player gets two hands and view is refreshed', () {
+      _setUpKnownHand([Card(rank: Rank.ace, suit: Suit.clubs), Card(rank: Rank.ace, suit: Suit.spades)]);
 
-    // Act
-    presenter.split();
+      presenter.split();
 
-    // Assert
-    expect(player.hands.length, 2);
-    expect(player.hands[0].cards.length, 2);
-    expect(player.hands[1].cards.length, 2);
-    expect(mockView.hasBeenRefreshed, isTrue);
+      expect(presenter.board.player.hands.length, 2);
+      expect(presenter.board.player.hands[0].cards.length, 2);
+      expect(presenter.board.player.hands[1].cards.length, 2);
+      expect(mockView.hasBeenRefreshed, isTrue);
+    });
+
+    test('When split() is called on an invalid hand, nothing happens', () {
+      _setUpKnownHand([Card(rank: Rank.ace, suit: Suit.clubs), Card(rank: Rank.king, suit: Suit.spades)]);
+
+      presenter.split();
+
+      expect(presenter.board.player.hands.length, 1);
+      expect(presenter.board.player.activeHand.cards.length, 2);
+      expect(mockView.hasBeenRefreshed, isFalse);
+    });
   });
 }

@@ -20,21 +20,25 @@ class HomePagePresenter {
   }
 
   void hit() {
+    if (board.isRoundOver) return;
     _board.hit();
     _view.refresh();
   }
 
   void stand() {
+    if (board.isRoundOver) return;
     _board.stand();
     _view.refresh();
   }
 
   void doubleDown() {
+    if (!board.canDoubleDown) return;
     _board.doubleDown();
     _view.refresh();
   }
 
   void split() {
+    if (!board.canSplit) return;
     _board.split();
     _view.refresh();
   }
