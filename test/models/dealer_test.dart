@@ -16,7 +16,7 @@ void main() {
     dealer.playTurn(deck);
     
     expect(dealer.score, greaterThanOrEqualTo(17));
-    expect(dealer.hand.length, greaterThan(2));
+    expect(dealer.activeHand.cards.length, greaterThan(2));
   });
 
   test('Dealer stands when score is 17 or greater', () {
@@ -29,6 +29,6 @@ void main() {
     dealer.playTurn(deck);
 
     expect(dealer.score, 17);
-    expect(dealer.hand.length, 2);
+    expect(dealer.activeHand.cards.length, 2);
   });
 }

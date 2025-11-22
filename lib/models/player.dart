@@ -7,11 +7,8 @@ class Player {
 
   Hand get activeHand => hands[activeHandIndex];
 
-  // For simplicity, these getters will work on the first hand for now.
-  // This will need to be updated when we have multiple hands.
   int get score => activeHand.score;
-  bool get isBlackjack => activeHand.isBlackjack;
-  List<Card> get hand => activeHand.cards; // Keep this for compatibility for now
+  bool get isBlackjack => hands.first.isNaturalBlackjack;
 
   void addCard(Card card) {
     activeHand.addCard(card);

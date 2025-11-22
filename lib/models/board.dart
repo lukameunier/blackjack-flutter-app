@@ -1,7 +1,9 @@
-import 'dealer.dart';
 import 'deck.dart';
-import 'hand.dart';
+import 'dealer.dart';
 import 'player.dart';
+import 'hand.dart';
+import 'card.dart';
+import 'rank.dart';
 
 class Board {
   Board() {
@@ -18,11 +20,7 @@ class Board {
   Player get player => players.first;
 
   bool get canDoubleDown => !isRoundOver && player.activeHand.cards.length == 2;
-
-  bool get canSplit =>
-      canDoubleDown &&
-      player.activeHand.cards[0].rank.value ==
-          player.activeHand.cards[1].rank.value;
+  bool get canSplit => canDoubleDown && player.activeHand.isSplittable;
 
   void newGame() {
     deck = Deck();
@@ -40,7 +38,7 @@ class Board {
     player.addCard(deck.drawCard());
     dealer.addCard(deck.drawCard());
 
-    if (player.isBlackjack || dealer.isBlackjack) {
+    if (player.hands.first.isNaturalBlackjack || dealer.isBlackjack) {
       isRoundOver = true;
     }
   }
@@ -69,6 +67,7 @@ class Board {
     if (!canSplit) return;
 
     final handToSplit = player.activeHand;
+    final isSplittingAces = handToSplit.cards[0].rank == Rank.ace;
     final secondCard = handToSplit.cards[1];
 
     handToSplit.removeCard(secondCard);
@@ -79,6 +78,11 @@ class Board {
 
     handToSplit.addCard(deck.drawCard());
     newHand.addCard(deck.drawCard());
+
+    if (isSplittingAces) {
+      stand();
+      stand();
+    }
   }
 
   void _nextHandOrStand() {
@@ -86,8 +90,7 @@ class Board {
       player.activeHandIndex++;
     } else {
       isRoundOver = true;
-      // Dealer only plays if at least one player hand is not a bust/blackjack
-      if (player.hands.any((hand) => hand.score <= 21 && !hand.isBlackjack)) {
+      if (player.hands.any((hand) => hand.score <= 21)) {
         dealer.playTurn(deck);
       }
     }
@@ -102,22 +105,22 @@ class Board {
     for (final hand in player.hands) {
       String prefix = player.hands.length > 1 ? "Hand $handNum: " : "";
 
-      if (hand.isBlackjack && !dealer.isBlackjack) {
-        results.add("${prefix}Blackjack! You Win!");
-      } else if (hand.isBlackjack && dealer.isBlackjack) {
-        results.add("${prefix}Push (Both have Blackjack)");
-      } else if (!hand.isBlackjack && dealer.isBlackjack) {
-        results.add("${prefix}Dealer has Blackjack! You Lose");
+      if (hand.isNaturalBlackjack && !dealer.isBlackjack) {
+        results.add('${prefix}Blackjack! You Win! (Paid 3:2)');
+      } else if (hand.isNaturalBlackjack && dealer.isBlackjack) {
+        results.add('${prefix}Push (Both have Blackjack)');
+      } else if (!hand.isNaturalBlackjack && dealer.isBlackjack) {
+        results.add('${prefix}Dealer has Blackjack! You Lose');
       } else if (hand.score > 21) {
-        results.add("${prefix}Bust! Dealer Wins");
+        results.add('${prefix}Bust! Dealer Wins');
       } else if (dealer.score > 21) {
-        results.add("${prefix}Dealer Busts! You Win!");
+        results.add('${prefix}Dealer Busts! You Win!');
       } else if (hand.score > dealer.score) {
-        results.add("${prefix}You Win!");
+        results.add('${prefix}You Win!');
       } else if (dealer.score > hand.score) {
-        results.add("${prefix}Dealer Wins");
+        results.add('${prefix}Dealer Wins');
       } else {
-        results.add("${prefix}Push (Tie)");
+        results.add('${prefix}Push (Tie)');
       }
       handNum++;
     }

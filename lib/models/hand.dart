@@ -37,5 +37,9 @@ class Hand {
     return total;
   }
 
-  bool get isBlackjack => _cards.length == 2 && score == 21;
+  /// A natural blackjack is a two-card hand totaling 21.
+  bool get isNaturalBlackjack => _cards.length == 2 && score == 21;
+
+  /// A hand is splittable if it contains two cards of the same value.
+  bool get isSplittable => _cards.length == 2 && _cards[0].rank.value == _cards[1].rank.value;
 }

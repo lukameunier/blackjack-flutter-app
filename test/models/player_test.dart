@@ -14,7 +14,7 @@ void main() {
       player.addCard(card1);
       player.addCard(card2);
 
-      expect(player.score, 15);
+      expect(player.activeHand.score, 15);
     });
 
     test('is calculated correctly with one Ace as 11', () {
@@ -25,7 +25,7 @@ void main() {
       player.addCard(aceCard);
       player.addCard(fiveCard);
 
-      expect(player.score, 16);
+      expect(player.activeHand.score, 16);
     });
 
     test('is calculated correctly with one Ace as 1 when score would bust', () {
@@ -38,7 +38,7 @@ void main() {
       player.addCard(sevenCard);
       player.addCard(aceCard);
 
-      expect(player.score, 16);
+      expect(player.activeHand.score, 16);
     });
 
     test('is calculated correctly with multiple Aces', () {
@@ -51,28 +51,33 @@ void main() {
       player.addCard(ace2);
       player.addCard(five);
 
-      expect(player.score, 17);
+      expect(player.activeHand.score, 17);
     });
   });
 
   group('isBlackjack Getter', () {
     test('returns true for a natural blackjack (Ace and 10-value card)', () {
+      // Arrange
       final player = Player();
       final ace = Card(rank: Rank.ace, suit: Suit.spades);
       final king = Card(rank: Rank.king, suit: Suit.clubs);
 
+      // Act
       player.addCard(ace);
       player.addCard(king);
 
+      // Assert
       expect(player.isBlackjack, isTrue);
     });
 
     test('returns false for a 21 with three cards', () {
+      // Arrange
       final player = Player();
       player.addCard(Card(rank: Rank.seven, suit: Suit.hearts));
       player.addCard(Card(rank: Rank.seven, suit: Suit.clubs));
       player.addCard(Card(rank: Rank.seven, suit: Suit.spades));
 
+      // Act & Assert
       expect(player.isBlackjack, isFalse);
     });
 
