@@ -1,8 +1,7 @@
-import 'deck.dart';
 import 'dealer.dart';
-import 'player.dart';
+import 'deck.dart';
 import 'hand.dart';
-import 'card.dart';
+import 'player.dart';
 
 class Board {
   Board() {
@@ -19,7 +18,11 @@ class Board {
   Player get player => players.first;
 
   bool get canDoubleDown => !isRoundOver && player.activeHand.cards.length == 2;
-  bool get canSplit => canDoubleDown && player.activeHand.cards[0].rank.value == player.activeHand.cards[1].rank.value;
+
+  bool get canSplit =>
+      canDoubleDown &&
+      player.activeHand.cards[0].rank.value ==
+          player.activeHand.cards[1].rank.value;
 
   void newGame() {
     deck = Deck();
@@ -68,15 +71,12 @@ class Board {
     final handToSplit = player.activeHand;
     final secondCard = handToSplit.cards[1];
 
-    // Remove the second card from the original hand
     handToSplit.removeCard(secondCard);
 
-    // Create the new hand with the second card
     final newHand = Hand();
     newHand.addCard(secondCard);
     player.hands.add(newHand);
 
-    // Deal a new card to each of the split hands
     handToSplit.addCard(deck.drawCard());
     newHand.addCard(deck.drawCard());
   }
@@ -86,25 +86,41 @@ class Board {
       player.activeHandIndex++;
     } else {
       isRoundOver = true;
-      if (!player.isBlackjack) {
+      // Dealer only plays if at least one player hand is not a bust/blackjack
+      if (player.hands.any((hand) => hand.score <= 21 && !hand.isBlackjack)) {
         dealer.playTurn(deck);
       }
     }
   }
 
-  String getWinner() {
-    // This logic will need to be updated to handle multiple hands
-    if (player.isBlackjack && dealer.isBlackjack) return 'Push (Both have Blackjack)';
-    if (player.isBlackjack) return 'Blackjack! You Win!';
-    if (dealer.isBlackjack) return 'Dealer has Blackjack! You Lose';
+  List<String> getWinner() {
+    if (!isRoundOver) return [];
 
-    if (player.score > 21) return 'You Bust! Dealer Wins';
-    if (dealer.score > 21) return 'Dealer Busts! You Win!';
-    if (isRoundOver) {
-      if (player.score > dealer.score) return 'You Win!';
-      if (dealer.score > player.score) return 'Dealer Wins';
-      return 'Push (Tie)';
+    List<String> results = [];
+    int handNum = 1;
+
+    for (final hand in player.hands) {
+      String prefix = player.hands.length > 1 ? "Hand $handNum: " : "";
+
+      if (hand.isBlackjack && !dealer.isBlackjack) {
+        results.add("${prefix}Blackjack! You Win!");
+      } else if (hand.isBlackjack && dealer.isBlackjack) {
+        results.add("${prefix}Push (Both have Blackjack)");
+      } else if (!hand.isBlackjack && dealer.isBlackjack) {
+        results.add("${prefix}Dealer has Blackjack! You Lose");
+      } else if (hand.score > 21) {
+        results.add("${prefix}Bust! Dealer Wins");
+      } else if (dealer.score > 21) {
+        results.add("${prefix}Dealer Busts! You Win!");
+      } else if (hand.score > dealer.score) {
+        results.add("${prefix}You Win!");
+      } else if (dealer.score > hand.score) {
+        results.add("${prefix}Dealer Wins");
+      } else {
+        results.add("${prefix}Push (Tie)");
+      }
+      handNum++;
     }
-    return ''; // Game is still in progress
+    return results;
   }
 }

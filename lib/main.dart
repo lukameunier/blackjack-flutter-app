@@ -61,12 +61,17 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
           children: [
             _buildHand('Dealer', _presenter.board.dealer.activeHand, hideFirstCard: !_presenter.board.isRoundOver),
             const SizedBox(height: 24),
-            ..._presenter.board.player.hands.map((hand) => _buildHand('Player', hand)).toList(),
+            ..._presenter.board.player.hands.map((hand) {
+              final handIndex = _presenter.board.player.hands.indexOf(hand);
+              final isActive = handIndex == _presenter.board.player.activeHandIndex && !_presenter.board.isRoundOver;
+              return _buildHand('Player Hand ${handIndex + 1}', hand, isActive: isActive);
+            }).toList(),
             const Spacer(),
             if (_presenter.board.isRoundOver)
-              Text(
-                _presenter.board.getWinner(),
-                style: Theme.of(context).textTheme.headlineMedium,
+              Column(
+                children: _presenter.board.getWinner()
+                    .map((result) => Text(result, style: Theme.of(context).textTheme.headlineMedium))
+                    .toList(),
               ),
             const SizedBox(height: 24),
             Row(
@@ -104,9 +109,18 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     );
   }
 
-  Widget _buildHand(String title, Hand hand, {bool hideFirstCard = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+  Widget _buildHand(String title, Hand hand, {bool hideFirstCard = false, bool isActive = false}) {
+    return Container(
+      decoration: isActive
+          ? BoxDecoration(
+              border: Border.all(
+                color: Colors.deepPurple.withOpacity(0.5),
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            )
+          : null,
+      padding: const EdgeInsets.all(8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
