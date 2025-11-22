@@ -16,6 +16,8 @@ class Board {
   // For now, we assume a single player
   Player get player => players.first;
 
+  bool get canDoubleDown => !isRoundOver && player.hand.length == 2;
+
   void newGame() {
     deck = Deck();
     dealer = Dealer();
@@ -50,6 +52,13 @@ class Board {
     isRoundOver = true;
     if (!player.isBlackjack) {
       dealer.playTurn(deck);
+    }
+  }
+
+  void doubleDown() {
+    if (canDoubleDown) {
+      player.addCard(deck.drawCard());
+      stand(); // Turn ends immediately after one card
     }
   }
 

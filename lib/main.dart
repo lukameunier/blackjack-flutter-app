@@ -60,6 +60,12 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _doubleDown() {
+    setState(() {
+      _board.doubleDown();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,6 +93,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 ElevatedButton(
                   onPressed: _board.isRoundOver ? null : _hit,
                   child: const Text('Hit'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _board.canDoubleDown ? _doubleDown : null,
+                  child: const Text('Double'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
