@@ -7,26 +7,24 @@ abstract class HomePageView {
 }
 
 class HomePagePresenter {
-  HomePagePresenter(this._view, {bool testMode = false}) {
-    _board = Board(testMode: testMode);
-    _walletService = WalletService();
-    _loadInitialWallet();
-  }
+  HomePagePresenter(this._view, {WalletService? walletService, bool testMode = false})
+      : _walletService = walletService ?? WalletService(),
+        _board = Board(testMode: testMode);
 
   final HomePageView _view;
-  late Board _board;
-  late WalletService _walletService;
+  final Board _board;
+  final WalletService _walletService;
 
   Board get board => _board;
 
-  Future<void> _loadInitialWallet() async {
+  Future<void> init() async {
     final amount = await _walletService.loadWallet();
-    _board.player.wallet = amount;
+    board.player.wallet = amount;
     _view.refresh();
   }
 
   Future<void> _saveWallet() async {
-    await _walletService.saveWallet(_board.player.wallet);
+    await _walletService.saveWallet(board.player.wallet);
   }
 
   void placeBetAndDeal(double amount) {
@@ -34,7 +32,7 @@ class HomePagePresenter {
       _view.showReshuffleMessage();
     }
     _board.placeBetAndDeal(amount);
-    _saveWallet(); // Save after betting
+    _saveWallet();
     _view.refresh();
   }
 
@@ -46,6 +44,7 @@ class HomePagePresenter {
 
   void declineInsurance() {
     _board.declineInsurance();
+    // No need to save wallet here as it hasn't changed
     _view.refresh();
   }
 
@@ -65,7 +64,7 @@ class HomePagePresenter {
   void stand() {
     if (board.state != GameState.playing) return;
     _board.stand();
-    _saveWallet(); // Save after payouts
+    _saveWallet();
     _view.refresh();
   }
 
