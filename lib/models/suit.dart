@@ -1,8 +1,14 @@
+import 'package:flutter/material.dart';
+
 enum Suit {
-  hearts,
-  diamonds,
-  clubs,
-  spades
+  hearts(IconData(0x2665)),
+  diamonds(IconData(0x2666)),
+  clubs(IconData(0x2663)),
+  spades(IconData(0x2660));
+
+  final IconData icon;
+
+  const Suit(this.icon);
 }
 
 extension SuitExtensions on Suit {

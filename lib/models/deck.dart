@@ -15,6 +15,8 @@ class Deck {
 
   late List<Card> _cards;
 
+  List<Card> get cards => List.unmodifiable(_cards);
+
   void shuffle() {
     _cards.shuffle();
   }
