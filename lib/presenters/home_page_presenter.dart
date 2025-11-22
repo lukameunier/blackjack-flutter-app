@@ -5,8 +5,8 @@ abstract class HomePageView {
 }
 
 class HomePagePresenter {
-  HomePagePresenter(this._view) {
-    _board = Board();
+  HomePagePresenter(this._view, {bool testMode = false}) {
+    _board = Board(testMode: testMode);
   }
 
   final HomePageView _view;
@@ -14,19 +14,19 @@ class HomePagePresenter {
 
   Board get board => _board;
 
-  void newGame() {
-    _board.newGame();
+  void placeBetAndDeal(double amount) {
+    _board.placeBetAndDeal(amount);
     _view.refresh();
   }
 
   void hit() {
-    if (board.isRoundOver) return;
+    if (board.state != GameState.playing) return;
     _board.hit();
     _view.refresh();
   }
 
   void stand() {
-    if (board.isRoundOver) return;
+    if (board.state != GameState.playing) return;
     _board.stand();
     _view.refresh();
   }
@@ -40,6 +40,11 @@ class HomePagePresenter {
   void split() {
     if (!board.canSplit) return;
     _board.split();
+    _view.refresh();
+  }
+
+  void nextRound() {
+    _board.nextRound();
     _view.refresh();
   }
 }

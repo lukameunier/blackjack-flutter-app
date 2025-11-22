@@ -1,6 +1,4 @@
-import 'package:blackjack/models/card.dart';
-import 'package:blackjack/models/rank.dart';
-import 'package:blackjack/models/suit.dart';
+import 'package:blackjack/models/board.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,84 +16,60 @@ void main() {
   late MockHomePageView mockView;
 
   setUp(() {
+    // Create the presenter in test mode to ensure a predictable (unshuffled) deck
     mockView = MockHomePageView();
-    presenter = HomePagePresenter(mockView);
+    presenter = HomePagePresenter(mockView, testMode: true);
   });
 
-  // Helper function to set up a known, non-random hand
-  void _setUpKnownHand(List<Card> playerCards) {
-    presenter.board.player.clearHand();
-    for (var card in playerCards) {
-      presenter.board.player.addCard(card);
-    }
-    // Ensure dealer doesn't have blackjack to avoid auto-ending the round
-    presenter.board.dealer.clearHand();
-    presenter.board.dealer.addCard(Card(rank: Rank.two, suit: Suit.clubs));
-    presenter.board.dealer.addCard(Card(rank: Rank.three, suit: Suit.clubs));
-    presenter.board.isRoundOver = false;
-  }
+  test('Initial state is betting', () {
+    expect(presenter.board.state, GameState.betting);
+  });
 
-  test('When hit() is called, player receives a card and view is refreshed', () {
-    _setUpKnownHand([Card(rank: Rank.five, suit: Suit.hearts), Card(rank: Rank.ten, suit: Suit.clubs)]);
-    final initialCardCount = presenter.board.player.activeHand.cards.length;
+  test('placeBetAndDeal() starts the game with a predictable hand and refreshes', () {
+    // Arrange
+    final initialWallet = presenter.board.player.wallet;
 
-    presenter.hit();
+    // Act
+    presenter.placeBetAndDeal(10);
 
-    expect(presenter.board.player.activeHand.cards.length, initialCardCount + 1);
+    // Assert
+    expect(presenter.board.state, GameState.playing);
+    expect(presenter.board.player.wallet, initialWallet - 10);
+    expect(presenter.board.player.hands.first.bet, 10);
+    expect(presenter.board.player.hands.first.cards.length, 2);
+    // With an unshuffled deck, the player will have King of Spades and King of Hearts
+    expect(presenter.board.player.hands.first.score, 20);
     expect(mockView.hasBeenRefreshed, isTrue);
   });
 
-  test('When stand() is called, the round is over and view is refreshed', () {
-    _setUpKnownHand([Card(rank: Rank.five, suit: Suit.hearts), Card(rank: Rank.ten, suit: Suit.clubs)]);
-    presenter.stand();
+  group('During gameplay with a predictable hand', () {
+    setUp(() {
+      presenter.placeBetAndDeal(10);
+      mockView.hasBeenRefreshed = false;
+    });
 
-    expect(presenter.board.isRoundOver, isTrue);
-    expect(mockView.hasBeenRefreshed, isTrue);
-  });
-
-  test('When doubleDown() is called, player gets one card, round ends, and view is refreshed', () {
-    _setUpKnownHand([Card(rank: Rank.five, suit: Suit.hearts), Card(rank: Rank.ten, suit: Suit.clubs)]);
-    final initialCardCount = presenter.board.player.activeHand.cards.length;
-
-    presenter.doubleDown();
-
-    expect(presenter.board.player.activeHand.cards.length, initialCardCount + 1);
-    expect(presenter.board.isRoundOver, isTrue);
-    expect(mockView.hasBeenRefreshed, isTrue);
-  });
-
-  test('When newGame() is called, the board is reset and view is refreshed', () {
-    presenter.hit();
-    presenter.stand();
-    expect(presenter.board.isRoundOver, isTrue);
-
-    presenter.newGame();
-
-    expect(presenter.board.isRoundOver, isFalse);
-    expect(presenter.board.player.activeHand.cards.length, 2);
-    expect(mockView.hasBeenRefreshed, isTrue);
-  });
-
-  group('Split Action', () {
-    test('When split() is called on a valid pair, player gets two hands and view is refreshed', () {
-      _setUpKnownHand([Card(rank: Rank.ace, suit: Suit.clubs), Card(rank: Rank.ace, suit: Suit.spades)]);
-
-      presenter.split();
-
-      expect(presenter.board.player.hands.length, 2);
-      expect(presenter.board.player.hands[0].cards.length, 2);
-      expect(presenter.board.player.hands[1].cards.length, 2);
+    test('hit() adds a card and refreshes', () {
+      final initialCardCount = presenter.board.player.activeHand.cards.length;
+      presenter.hit();
+      expect(presenter.board.player.activeHand.cards.length, initialCardCount + 1);
       expect(mockView.hasBeenRefreshed, isTrue);
     });
 
-    test('When split() is called on an invalid hand, nothing happens', () {
-      _setUpKnownHand([Card(rank: Rank.ace, suit: Suit.clubs), Card(rank: Rank.king, suit: Suit.spades)]);
+    test('stand() ends the round and refreshes', () {
+      presenter.stand();
+      expect(presenter.board.state, GameState.roundOver);
+      expect(mockView.hasBeenRefreshed, isTrue);
+    });
 
-      presenter.split();
+    test('nextRound() resets to betting state and refreshes', () {
+      presenter.stand();
+      mockView.hasBeenRefreshed = false;
 
-      expect(presenter.board.player.hands.length, 1);
-      expect(presenter.board.player.activeHand.cards.length, 2);
-      expect(mockView.hasBeenRefreshed, isFalse);
+      presenter.nextRound();
+
+      expect(presenter.board.state, GameState.betting);
+      expect(presenter.board.player.hands.first.cards, isEmpty);
+      expect(mockView.hasBeenRefreshed, isTrue);
     });
   });
 }

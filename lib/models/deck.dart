@@ -3,14 +3,16 @@ import 'rank.dart';
 import 'suit.dart';
 
 class Deck {
-  Deck() {
+  Deck({bool shuffle = true}) {
     _cards = [];
     for (final suit in Suit.values) {
       for (final rank in Rank.values) {
         _cards.add(Card(rank: rank, suit: suit));
       }
     }
-    shuffle();
+    if (shuffle) {
+      this.shuffle();
+    }
   }
 
   late List<Card> _cards;

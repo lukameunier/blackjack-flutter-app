@@ -2,7 +2,10 @@ import 'card.dart';
 import 'rank.dart';
 
 class Hand {
+  Hand({this.bet = 0});
+
   final List<Card> _cards = [];
+  double bet;
 
   List<Card> get cards => List.unmodifiable(_cards);
 
