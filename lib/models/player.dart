@@ -28,4 +28,6 @@ class Player {
 
     return total;
   }
+
+  bool get isBlackjack => _hand.length == 2 && score == 21;
 }

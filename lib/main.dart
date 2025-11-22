@@ -39,7 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late Deck _deck;
   late Player _player;
   late Dealer _dealer;
-  bool _playerStands = false;
+  bool _isRoundOver = false;
 
   @override
   void initState() {
@@ -52,12 +52,17 @@ class _MyHomePageState extends State<MyHomePage> {
       _deck = Deck();
       _player = Player();
       _dealer = Dealer();
-      _playerStands = false;
+      _isRoundOver = false;
 
       _player.addCard(_deck.drawCard());
       _dealer.addCard(_deck.drawCard());
       _player.addCard(_deck.drawCard());
       _dealer.addCard(_deck.drawCard());
+
+      // Check for initial blackjacks
+      if (_player.isBlackjack || _dealer.isBlackjack) {
+        _isRoundOver = true;
+      }
     });
   }
 
@@ -65,18 +70,28 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_player.score < 21) {
       setState(() {
         _player.addCard(_deck.drawCard());
+        if (_player.score >= 21) {
+          _stand(); // Automatically stand if player busts or hits 21
+        }
       });
     }
   }
 
   void _stand() {
     setState(() {
-      _playerStands = true;
-      _dealer.playTurn(_deck);
+      _isRoundOver = true;
+      if (!_player.isBlackjack) {
+        // Dealer only plays if player doesn't have a natural blackjack
+        _dealer.playTurn(_deck);
+      }
     });
   }
 
   String _getWinner() {
+    if (_player.isBlackjack && _dealer.isBlackjack) return 'Push (Both have Blackjack)';
+    if (_player.isBlackjack) return 'Blackjack! You Win!';
+    if (_dealer.isBlackjack) return 'Dealer has Blackjack! You Lose';
+
     if (_player.score > 21) return 'You Bust! Dealer Wins';
     if (_dealer.score > 21) return 'Dealer Busts! You Win!';
     if (_player.score > _dealer.score) return 'You Win!';
@@ -95,11 +110,11 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildHand('Dealer', _dealer, hideFirstCard: !_playerStands),
+            _buildHand('Dealer', _dealer, hideFirstCard: !_isRoundOver),
             const SizedBox(height: 24),
             _buildHand('Player', _player),
             const Spacer(),
-            if (_playerStands || _player.score >= 21)
+            if (_isRoundOver)
               Text(
                 _getWinner(),
                 style: Theme.of(context).textTheme.headlineMedium,
@@ -109,12 +124,12 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _playerStands || _player.score >= 21 ? null : _hit,
+                  onPressed: _isRoundOver ? null : _hit,
                   child: const Text('Hit'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: _playerStands || _player.score >= 21 ? null : _stand,
+                  onPressed: _isRoundOver ? null : _stand,
                   child: const Text('Stand'),
                 ),
               ],
