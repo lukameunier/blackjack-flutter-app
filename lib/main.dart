@@ -78,6 +78,7 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
       case GameState.betting:
         return _buildBettingView();
       case GameState.playing:
+      case GameState.offeringInsurance:
       case GameState.roundOver:
         return _buildPlayingView();
     }
@@ -130,6 +131,11 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
           );
         }),
         const Spacer(),
+        if (_presenter.board.state == GameState.offeringInsurance)
+          Text(
+            'Dealer has an Ace. Do you want insurance?',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
         if (_presenter.board.state == GameState.roundOver) _buildResultsView(),
         const SizedBox(height: 24),
         _buildActionButtons(),
@@ -144,8 +150,8 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
         final payoutInfo = result.payout > 0
             ? (result.payout == hand.bet
                   ? ' (Push)'
-                  : ' (+${result.payout - hand.bet})')
-            : ' (-${hand.bet})';
+                  : ' (+${(result.payout - hand.bet).toStringAsFixed(2)})')
+            : ' (-${hand.bet.toStringAsFixed(2)})';
         return Text(
           '${result.message}$payoutInfo',
           style: Theme.of(context).textTheme.headlineSmall,
@@ -155,32 +161,50 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
   }
 
   Widget _buildActionButtons() {
-    if (_presenter.board.state == GameState.roundOver) {
-      return ElevatedButton(
-        onPressed: _presenter.nextRound,
-        child: const Text('Next Round'),
-      );
+    final board = _presenter.board;
+    switch (board.state) {
+      case GameState.betting:
+        return const SizedBox.shrink(); // No buttons during betting
+      case GameState.offeringInsurance:
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: board.canTakeInsurance ? _presenter.takeInsurance : null,
+              child: const Text('Take Insurance'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _presenter.declineInsurance,
+              child: const Text('No, Thanks'),
+            ),
+          ],
+        );
+      case GameState.playing:
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(onPressed: _presenter.hit, child: const Text('Hit')),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: board.canDoubleDown ? _presenter.doubleDown : null,
+              child: const Text('Double'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: board.canSplit ? _presenter.split : null,
+              child: const Text('Split'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(onPressed: _presenter.stand, child: const Text('Stand')),
+          ],
+        );
+      case GameState.roundOver:
+        return ElevatedButton(
+          onPressed: _presenter.nextRound,
+          child: const Text('Next Round'),
+        );
     }
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ElevatedButton(onPressed: _presenter.hit, child: const Text('Hit')),
-        const SizedBox(width: 12),
-        ElevatedButton(
-          onPressed: _presenter.board.canDoubleDown
-              ? _presenter.doubleDown
-              : null,
-          child: const Text('Double'),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton(
-          onPressed: _presenter.board.canSplit ? _presenter.split : null,
-          child: const Text('Split'),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton(onPressed: _presenter.stand, child: const Text('Stand')),
-      ],
-    );
   }
 
   Widget _buildHandView(

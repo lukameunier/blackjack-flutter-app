@@ -19,6 +19,16 @@ class HomePagePresenter {
     _view.refresh();
   }
 
+  void takeInsurance() {
+    _board.takeInsurance();
+    _view.refresh();
+  }
+
+  void declineInsurance() {
+    _board.declineInsurance();
+    _view.refresh();
+  }
+
   void hit() {
     if (board.state != GameState.playing) return;
     _board.hit();

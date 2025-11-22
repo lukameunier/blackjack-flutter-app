@@ -4,7 +4,7 @@ import 'hand.dart';
 import 'player.dart';
 import 'rank.dart';
 
-enum GameState { betting, playing, roundOver }
+enum GameState { betting, playing, offeringInsurance, roundOver }
 
 class GameResult {
   final String message;
@@ -36,6 +36,10 @@ class Board {
       player.activeHand.isSplittable &&
       player.wallet >= player.activeHand.bet;
 
+  bool get canTakeInsurance =>
+      state == GameState.offeringInsurance &&
+      player.wallet >= player.hands.first.bet / 2;
+
   void placeBetAndDeal(double amount) {
     if (state != GameState.betting || player.wallet < amount) return;
 
@@ -53,8 +57,31 @@ class Board {
     player.addCard(deck.drawCard());
     dealer.addCard(deck.drawCard());
 
+    if (dealer.activeHand.cards.first.rank == Rank.ace) {
+      state = GameState.offeringInsurance;
+    } else if (player.isBlackjack || dealer.isBlackjack) {
+      _endRound();
+    }
+  }
+
+  void takeInsurance() {
+    if (!canTakeInsurance) return;
+    final insuranceAmount = player.hands.first.bet / 2;
+    player.wallet -= insuranceAmount;
+    player.insuranceBet = insuranceAmount;
+    _resumePlay();
+  }
+
+  void declineInsurance() {
+    if (state != GameState.offeringInsurance) return;
+    _resumePlay();
+  }
+
+  void _resumePlay() {
     if (player.isBlackjack || dealer.isBlackjack) {
       _endRound();
+    } else {
+      state = GameState.playing;
     }
   }
 
@@ -124,6 +151,13 @@ class Board {
   }
 
   void _calculatePayouts() {
+    // Payout for insurance first
+    if (player.insuranceBet > 0) {
+      if (dealer.isBlackjack) {
+        player.wallet += player.insuranceBet * 3; // Insurance pays 2:1, so player gets 3x the insurance bet back
+      }
+    }
+
     for (final hand in player.hands) {
       final result = getResultForHand(hand);
       player.wallet += result.payout;

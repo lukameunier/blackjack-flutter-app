@@ -5,7 +5,7 @@ class Player {
   Player({this.wallet = 1000.0});
 
   double wallet;
-  // A player always starts with at least one hand.
+  double insuranceBet = 0;
   final List<Hand> hands = [Hand()];
   int activeHandIndex = 0;
 
@@ -22,5 +22,6 @@ class Player {
     hands.clear();
     hands.add(Hand()); // Always ensure there is one hand after clearing.
     activeHandIndex = 0;
+    insuranceBet = 0;
   }
 }
