@@ -25,4 +25,9 @@ class Deck {
     }
     return _cards.removeLast();
   }
+
+  @override
+  String toString() {
+    return _cards.toString();
+  }
 }
