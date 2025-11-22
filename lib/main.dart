@@ -1,5 +1,5 @@
-import 'package:blackjack/models/board.dart';
 import 'package:blackjack/models/player.dart';
+import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:blackjack/views/card_view.dart';
 import 'package:flutter/material.dart';
 
@@ -33,37 +33,18 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  late Board _board;
+class _MyHomePageState extends State<MyHomePage> implements HomePageView {
+  late HomePagePresenter _presenter;
 
   @override
   void initState() {
     super.initState();
-    _board = Board();
+    _presenter = HomePagePresenter(this);
   }
 
-  void _newGame() {
-    setState(() {
-      _board.newGame();
-    });
-  }
-
-  void _hit() {
-    setState(() {
-      _board.hit();
-    });
-  }
-
-  void _stand() {
-    setState(() {
-      _board.stand();
-    });
-  }
-
-  void _doubleDown() {
-    setState(() {
-      _board.doubleDown();
-    });
+  @override
+  void refresh() {
+    setState(() {});
   }
 
   @override
@@ -77,13 +58,13 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildHand('Dealer', _board.dealer, hideFirstCard: !_board.isRoundOver),
+            _buildHand('Dealer', _presenter.board.dealer, hideFirstCard: !_presenter.board.isRoundOver),
             const SizedBox(height: 24),
-            _buildHand('Player', _board.player),
+            _buildHand('Player', _presenter.board.player),
             const Spacer(),
-            if (_board.isRoundOver)
+            if (_presenter.board.isRoundOver)
               Text(
-                _board.getWinner(),
+                _presenter.board.getWinner(),
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             const SizedBox(height: 24),
@@ -91,17 +72,17 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _board.isRoundOver ? null : _hit,
+                  onPressed: _presenter.board.isRoundOver ? null : _presenter.hit,
                   child: const Text('Hit'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: _board.canDoubleDown ? _doubleDown : null,
+                  onPressed: _presenter.board.canDoubleDown ? _presenter.doubleDown : null,
                   child: const Text('Double'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: _board.isRoundOver ? null : _stand,
+                  onPressed: _presenter.board.isRoundOver ? null : _presenter.stand,
                   child: const Text('Stand'),
                 ),
               ],
@@ -110,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _newGame,
+        onPressed: _presenter.newGame,
         tooltip: 'New Game',
         child: const Icon(Icons.refresh),
       ),
