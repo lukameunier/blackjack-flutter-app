@@ -1,4 +1,5 @@
 import 'package:blackjack/models/card.dart' as playing_card;
+import 'package:blackjack/models/dealer.dart';
 import 'package:blackjack/models/player.dart';
 import 'package:blackjack/models/rank.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +38,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late Deck _deck;
   late Player _player;
-  late Player _dealer;
+  late Dealer _dealer;
+  bool _playerStands = false;
 
   @override
   void initState() {
@@ -49,9 +51,9 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _deck = Deck();
       _player = Player();
-      _dealer = Player();
+      _dealer = Dealer();
+      _playerStands = false;
 
-      // Deal initial cards
       _player.addCard(_deck.drawCard());
       _dealer.addCard(_deck.drawCard());
       _player.addCard(_deck.drawCard());
@@ -67,6 +69,21 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _stand() {
+    setState(() {
+      _playerStands = true;
+      _dealer.playTurn(_deck);
+    });
+  }
+
+  String _getWinner() {
+    if (_player.score > 21) return 'You Bust! Dealer Wins';
+    if (_dealer.score > 21) return 'Dealer Busts! You Win!';
+    if (_player.score > _dealer.score) return 'You Win!';
+    if (_dealer.score > _player.score) return 'Dealer Wins';
+    return 'Push (Tie)';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,22 +95,28 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildHand('Dealer', _dealer),
+            _buildHand('Dealer', _dealer, hideFirstCard: !_playerStands),
             const SizedBox(height: 24),
             _buildHand('Player', _player),
             const Spacer(),
-            if (_player.score >= 21)
+            if (_playerStands || _player.score >= 21)
               Text(
-                _player.score > 21 ? 'Bust!' : 'Blackjack!',
+                _getWinner(),
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(onPressed: _player.score < 21 ? _hit : null, child: const Text('Hit')),
+                ElevatedButton(
+                  onPressed: _playerStands || _player.score >= 21 ? null : _hit,
+                  child: const Text('Hit'),
+                ),
                 const SizedBox(width: 16),
-                ElevatedButton(onPressed: () {}, child: const Text('Stand')),
+                ElevatedButton(
+                  onPressed: _playerStands || _player.score >= 21 ? null : _stand,
+                  child: const Text('Stand'),
+                ),
               ],
             ),
           ],
@@ -107,22 +130,45 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildHand(String title, Player player) {
+  Widget _buildHand(String title, Player player, {bool hideFirstCard = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$title (Score: ${player.score})',
+          '$title (Score: ${hideFirstCard ? '??' : player.score})',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: player.hand.map((card) => CardView(card: card)).toList(),
+            children: List.generate(player.hand.length, (index) {
+              if (index == 0 && hideFirstCard) {
+                return const HiddenCardView();
+              }
+              return CardView(card: player.hand[index]);
+            }),
           ),
         ),
       ],
+    );
+  }
+}
+
+class HiddenCardView extends StatelessWidget {
+  const HiddenCardView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 80,
+      height: 110,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.black54),
+      ),
     );
   }
 }
