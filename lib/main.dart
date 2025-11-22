@@ -1,7 +1,8 @@
 import 'package:blackjack/models/board.dart';
 import 'package:blackjack/models/hand.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
-import 'package:blackjack/views/card_view.dart';
+import 'package:blackjack/widgets/betting_view.dart';
+import 'package:blackjack/widgets/card_view.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -85,40 +86,18 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
   }
 
   Widget _buildGameView() {
-    switch (_presenter.board.state) {
+    final board = _presenter.board;
+    switch (board.state) {
       case GameState.betting:
-        return _buildBettingView();
+        return BettingView(
+          playerWallet: board.player.wallet,
+          onBetPlaced: (amount) => _presenter.placeBetAndDeal(amount),
+        );
       case GameState.playing:
       case GameState.offeringInsurance:
       case GameState.roundOver:
         return _buildPlayingView();
     }
-  }
-
-  Widget _buildBettingView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Place your bet',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [10.0, 25.0, 50.0, 100.0].map((amount) {
-              return ElevatedButton(
-                onPressed: _presenter.board.player.wallet >= amount
-                    ? () => _presenter.placeBetAndDeal(amount)
-                    : null,
-                child: Text('\$$amount'),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildPlayingView() {
