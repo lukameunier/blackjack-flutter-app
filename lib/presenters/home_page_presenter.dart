@@ -2,6 +2,7 @@ import 'package:blackjack/models/board.dart';
 
 abstract class HomePageView {
   void refresh();
+  void showReshuffleMessage();
 }
 
 class HomePagePresenter {
@@ -15,6 +16,9 @@ class HomePagePresenter {
   Board get board => _board;
 
   void placeBetAndDeal(double amount) {
+    if (board.reshuffleNeeded) {
+      _view.showReshuffleMessage();
+    }
     _board.placeBetAndDeal(amount);
     _view.refresh();
   }

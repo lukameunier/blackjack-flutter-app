@@ -16,8 +16,7 @@ class GameResult {
 class Board {
   Board({this.testMode = false}) {
     players.add(Player());
-    deck = Deck(shuffle: !testMode);
-    deck.burn(5);
+    _resetShoe();
   }
 
   late Deck deck;
@@ -25,6 +24,7 @@ class Board {
   final List<Player> players = [];
   GameState state = GameState.betting;
   final bool testMode;
+  bool reshuffleNeeded = false;
 
   Player get player => players.first;
 
@@ -47,12 +47,17 @@ class Board {
       state == GameState.offeringInsurance &&
       player.wallet >= player.hands.first.bet / 2;
 
+  void _resetShoe() {
+    deck = Deck(shuffle: !testMode);
+    deck.burn(5);
+    reshuffleNeeded = false;
+  }
+
   void placeBetAndDeal(double amount) {
     if (state != GameState.betting || player.wallet < amount) return;
 
-    if (deck.cards.length < 52) {
-      deck = Deck(shuffle: !testMode);
-      deck.burn(5);
+    if (reshuffleNeeded) {
+      _resetShoe();
     }
 
     player.clearHands();
@@ -163,6 +168,9 @@ class Board {
     state = GameState.roundOver;
     if (player.hands.any((hand) => hand.score <= 21 && !hand.isSurrendered)) {
       dealer.playTurn(deck);
+    }
+    if (deck.needsReshuffle) {
+      reshuffleNeeded = true;
     }
     _calculatePayouts();
   }

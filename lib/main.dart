@@ -49,6 +49,16 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
   }
 
   @override
+  void showReshuffleMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('The dealer is shuffling a new shoe...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -145,8 +155,8 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
         final result = _presenter.board.getResultForHand(hand);
         final payoutInfo = result.payout > 0
             ? (result.payout == hand.bet
-                ? ' (Push)'
-                : ' (+${(result.payout - hand.bet).toStringAsFixed(2)})')
+                  ? ' (Push)'
+                  : ' (+${(result.payout - hand.bet).toStringAsFixed(2)})')
             : ' (-${hand.bet.toStringAsFixed(2)})';
         return Text(
           '${result.message}$payoutInfo',
@@ -166,7 +176,9 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: board.canTakeInsurance ? _presenter.takeInsurance : null,
+              onPressed: board.canTakeInsurance
+                  ? _presenter.takeInsurance
+                  : null,
               child: const Text('Take Insurance'),
             ),
             const SizedBox(width: 16),
@@ -195,7 +207,10 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
               onPressed: board.canSurrender ? _presenter.surrender : null,
               child: const Text('Surrender'),
             ),
-            ElevatedButton(onPressed: _presenter.stand, child: const Text('Stand')),
+            ElevatedButton(
+              onPressed: _presenter.stand,
+              child: const Text('Stand'),
+            ),
           ],
         );
       case GameState.roundOver:
@@ -206,11 +221,7 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     }
   }
 
-  Widget _buildHandView(
-    String title,
-    Hand hand, {
-    bool isActive = false,
-  }) {
+  Widget _buildHandView(String title, Hand hand, {bool isActive = false}) {
     return Container(
       decoration: isActive
           ? BoxDecoration(

@@ -3,6 +3,8 @@ import 'rank.dart';
 import 'suit.dart';
 
 class Deck {
+  static const int RESHUFFLE_THRESHOLD = 75;
+
   Deck({bool shuffle = true, int numDecks = 6}) {
     _cards = [];
     for (int i = 0; i < numDecks; i++) {
@@ -20,6 +22,8 @@ class Deck {
   late List<Card> _cards;
 
   List<Card> get cards => List.unmodifiable(_cards);
+
+  bool get needsReshuffle => _cards.length < RESHUFFLE_THRESHOLD;
 
   void shuffle() {
     _cards.shuffle();
