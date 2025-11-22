@@ -3,11 +3,13 @@ import 'rank.dart';
 import 'suit.dart';
 
 class Deck {
-  Deck({bool shuffle = true}) {
+  Deck({bool shuffle = true, int numDecks = 6}) {
     _cards = [];
-    for (final suit in Suit.values) {
-      for (final rank in Rank.values) {
-        _cards.add(Card(rank: rank, suit: suit));
+    for (int i = 0; i < numDecks; i++) {
+      for (final suit in Suit.values) {
+        for (final rank in Rank.values) {
+          _cards.add(Card(rank: rank, suit: suit));
+        }
       }
     }
     if (shuffle) {
@@ -21,6 +23,12 @@ class Deck {
 
   void shuffle() {
     _cards.shuffle();
+  }
+
+  void burn(int count) {
+    if (_cards.length > count) {
+      _cards.removeRange(0, count);
+    }
   }
 
   Card drawCard() {

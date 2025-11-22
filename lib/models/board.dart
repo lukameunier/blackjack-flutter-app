@@ -16,6 +16,8 @@ class GameResult {
 class Board {
   Board({this.testMode = false}) {
     players.add(Player());
+    deck = Deck(shuffle: !testMode);
+    deck.burn(5);
   }
 
   late Deck deck;
@@ -43,13 +45,17 @@ class Board {
   void placeBetAndDeal(double amount) {
     if (state != GameState.betting || player.wallet < amount) return;
 
+    if (deck.cards.length < 52) {
+      deck = Deck(shuffle: !testMode);
+      deck.burn(5);
+    }
+
     player.clearHands();
     dealer.clearHands();
 
     player.wallet -= amount;
     player.activeHand.bet = amount;
 
-    deck = Deck(shuffle: !testMode);
     state = GameState.playing;
 
     player.addCard(deck.drawCard());
@@ -151,10 +157,9 @@ class Board {
   }
 
   void _calculatePayouts() {
-    // Payout for insurance first
     if (player.insuranceBet > 0) {
       if (dealer.isBlackjack) {
-        player.wallet += player.insuranceBet * 3; // Insurance pays 2:1, so player gets 3x the insurance bet back
+        player.wallet += player.insuranceBet * 3;
       }
     }
 
@@ -166,7 +171,7 @@ class Board {
 
   GameResult getResultForHand(Hand hand) {
     if (hand.isNaturalBlackjack && !dealer.isBlackjack) {
-      return GameResult('Blackjack! You Win!', hand.bet * 2.5); // 3:2 payout
+      return GameResult('Blackjack! You Win!', hand.bet * 2.5);
     } else if (hand.isNaturalBlackjack && dealer.isBlackjack) {
       return GameResult('Push (Both have Blackjack)', hand.bet);
     } else if (!hand.isNaturalBlackjack && dealer.isBlackjack) {
