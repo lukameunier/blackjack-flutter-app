@@ -10,6 +10,10 @@ class Player {
     _hand.add(card);
   }
 
+  void clearHand() {
+    _hand.clear();
+  }
+
   int get score {
     int total = 0;
     int aceCount = 0;

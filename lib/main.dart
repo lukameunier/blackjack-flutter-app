@@ -1,9 +1,8 @@
+import 'package:blackjack/models/board.dart';
 import 'package:blackjack/models/card.dart' as playing_card;
-import 'package:blackjack/models/dealer.dart';
 import 'package:blackjack/models/player.dart';
 import 'package:blackjack/models/rank.dart';
 import 'package:flutter/material.dart';
-import 'models/deck.dart';
 
 void main() {
   runApp(const MyApp());
@@ -36,67 +35,30 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late Deck _deck;
-  late Player _player;
-  late Dealer _dealer;
-  bool _isRoundOver = false;
+  late Board _board;
 
   @override
   void initState() {
     super.initState();
-    _startGame();
+    _board = Board();
   }
 
-  void _startGame() {
+  void _newGame() {
     setState(() {
-      _deck = Deck();
-      _player = Player();
-      _dealer = Dealer();
-      _isRoundOver = false;
-
-      _player.addCard(_deck.drawCard());
-      _dealer.addCard(_deck.drawCard());
-      _player.addCard(_deck.drawCard());
-      _dealer.addCard(_deck.drawCard());
-
-      // Check for initial blackjacks
-      if (_player.isBlackjack || _dealer.isBlackjack) {
-        _isRoundOver = true;
-      }
+      _board.newGame();
     });
   }
 
   void _hit() {
-    if (_player.score < 21) {
-      setState(() {
-        _player.addCard(_deck.drawCard());
-        if (_player.score >= 21) {
-          _stand(); // Automatically stand if player busts or hits 21
-        }
-      });
-    }
+    setState(() {
+      _board.hit();
+    });
   }
 
   void _stand() {
     setState(() {
-      _isRoundOver = true;
-      if (!_player.isBlackjack) {
-        // Dealer only plays if player doesn't have a natural blackjack
-        _dealer.playTurn(_deck);
-      }
+      _board.stand();
     });
-  }
-
-  String _getWinner() {
-    if (_player.isBlackjack && _dealer.isBlackjack) return 'Push (Both have Blackjack)';
-    if (_player.isBlackjack) return 'Blackjack! You Win!';
-    if (_dealer.isBlackjack) return 'Dealer has Blackjack! You Lose';
-
-    if (_player.score > 21) return 'You Bust! Dealer Wins';
-    if (_dealer.score > 21) return 'Dealer Busts! You Win!';
-    if (_player.score > _dealer.score) return 'You Win!';
-    if (_dealer.score > _player.score) return 'Dealer Wins';
-    return 'Push (Tie)';
   }
 
   @override
@@ -110,13 +72,13 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildHand('Dealer', _dealer, hideFirstCard: !_isRoundOver),
+            _buildHand('Dealer', _board.dealer, hideFirstCard: !_board.isRoundOver),
             const SizedBox(height: 24),
-            _buildHand('Player', _player),
+            _buildHand('Player', _board.player),
             const Spacer(),
-            if (_isRoundOver)
+            if (_board.isRoundOver)
               Text(
-                _getWinner(),
+                _board.getWinner(),
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             const SizedBox(height: 24),
@@ -124,12 +86,12 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _isRoundOver ? null : _hit,
+                  onPressed: _board.isRoundOver ? null : _hit,
                   child: const Text('Hit'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: _isRoundOver ? null : _stand,
+                  onPressed: _board.isRoundOver ? null : _stand,
                   child: const Text('Stand'),
                 ),
               ],
@@ -138,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _startGame,
+        onPressed: _newGame,
         tooltip: 'New Game',
         child: const Icon(Icons.refresh),
       ),
