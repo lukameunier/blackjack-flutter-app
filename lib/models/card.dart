@@ -9,6 +9,6 @@ class Card {
 
   @override
   String toString() {
-    return '${rank.displayValue} ${suit.displayName}';
+    return '${rank.shortName} ${suit.displayName}';
   }
 }

@@ -1,5 +1,4 @@
 import 'package:blackjack/models/card.dart' as playing_card;
-import 'package:blackjack/models/rank.dart';
 import 'package:flutter/material.dart';
 
 class HiddenCardView extends StatelessWidget {
@@ -36,7 +35,10 @@ class CardView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(card.rank.displayValue.toString(), style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              card.rank.shortName,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             Icon(card.suit.icon, size: 30),
           ],
         ),
