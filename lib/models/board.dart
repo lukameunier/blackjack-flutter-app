@@ -1,6 +1,8 @@
 import 'deck.dart';
 import 'dealer.dart';
 import 'player.dart';
+import 'hand.dart';
+import 'card.dart';
 
 class Board {
   Board() {
@@ -16,7 +18,8 @@ class Board {
   // For now, we assume a single player
   Player get player => players.first;
 
-  bool get canDoubleDown => !isRoundOver && player.hand.length == 2;
+  bool get canDoubleDown => !isRoundOver && player.activeHand.cards.length == 2;
+  bool get canSplit => canDoubleDown && player.activeHand.cards[0].rank.value == player.activeHand.cards[1].rank.value;
 
   void newGame() {
     deck = Deck();
@@ -40,29 +43,57 @@ class Board {
   }
 
   void hit() {
-    if (player.score < 21) {
+    if (player.activeHand.score < 21) {
       player.addCard(deck.drawCard());
-      if (player.score >= 21) {
-        stand(); // Automatically stand if player busts or hits 21
+      if (player.activeHand.score >= 21) {
+        _nextHandOrStand();
       }
     }
   }
 
   void stand() {
-    isRoundOver = true;
-    if (!player.isBlackjack) {
-      dealer.playTurn(deck);
-    }
+    _nextHandOrStand();
   }
 
   void doubleDown() {
     if (canDoubleDown) {
       player.addCard(deck.drawCard());
-      stand(); // Turn ends immediately after one card
+      _nextHandOrStand();
+    }
+  }
+
+  void split() {
+    if (!canSplit) return;
+
+    final handToSplit = player.activeHand;
+    final secondCard = handToSplit.cards[1];
+
+    // Remove the second card from the original hand
+    handToSplit.removeCard(secondCard);
+
+    // Create the new hand with the second card
+    final newHand = Hand();
+    newHand.addCard(secondCard);
+    player.hands.add(newHand);
+
+    // Deal a new card to each of the split hands
+    handToSplit.addCard(deck.drawCard());
+    newHand.addCard(deck.drawCard());
+  }
+
+  void _nextHandOrStand() {
+    if (player.activeHandIndex < player.hands.length - 1) {
+      player.activeHandIndex++;
+    } else {
+      isRoundOver = true;
+      if (!player.isBlackjack) {
+        dealer.playTurn(deck);
+      }
     }
   }
 
   String getWinner() {
+    // This logic will need to be updated to handle multiple hands
     if (player.isBlackjack && dealer.isBlackjack) return 'Push (Both have Blackjack)';
     if (player.isBlackjack) return 'Blackjack! You Win!';
     if (dealer.isBlackjack) return 'Dealer has Blackjack! You Lose';

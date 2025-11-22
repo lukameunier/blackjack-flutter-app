@@ -1,3 +1,4 @@
+import 'package:blackjack/models/hand.dart';
 import 'package:blackjack/models/player.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:blackjack/views/card_view.dart';
@@ -58,9 +59,9 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildHand('Dealer', _presenter.board.dealer, hideFirstCard: !_presenter.board.isRoundOver),
+            _buildHand('Dealer', _presenter.board.dealer.activeHand, hideFirstCard: !_presenter.board.isRoundOver),
             const SizedBox(height: 24),
-            _buildHand('Player', _presenter.board.player),
+            ..._presenter.board.player.hands.map((hand) => _buildHand('Player', hand)).toList(),
             const Spacer(),
             if (_presenter.board.isRoundOver)
               Text(
@@ -82,6 +83,11 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
+                  onPressed: _presenter.board.canSplit ? _presenter.split : null,
+                  child: const Text('Split'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
                   onPressed: _presenter.board.isRoundOver ? null : _presenter.stand,
                   child: const Text('Stand'),
                 ),
@@ -98,27 +104,30 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     );
   }
 
-  Widget _buildHand(String title, Player player, {bool hideFirstCard = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$title (Score: ${hideFirstCard ? '??' : player.score})',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(player.hand.length, (index) {
-              if (index == 0 && hideFirstCard) {
-                return const HiddenCardView();
-              }
-              return CardView(card: player.hand[index]);
-            }),
+  Widget _buildHand(String title, Hand hand, {bool hideFirstCard = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$title (Score: ${hideFirstCard ? '??' : hand.score})',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(hand.cards.length, (index) {
+                if (index == 0 && hideFirstCard) {
+                  return const HiddenCardView();
+                }
+                return CardView(card: hand.cards[index]);
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

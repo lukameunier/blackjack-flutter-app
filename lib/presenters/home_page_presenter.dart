@@ -33,4 +33,9 @@ class HomePagePresenter {
     _board.doubleDown();
     _view.refresh();
   }
+
+  void split() {
+    _board.split();
+    _view.refresh();
+  }
 }

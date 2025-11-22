@@ -1,37 +1,25 @@
 import 'card.dart';
-import 'rank.dart';
+import 'hand.dart';
 
 class Player {
-  final List<Card> _hand = [];
+  final List<Hand> hands = [Hand()];
+  int activeHandIndex = 0;
 
-  List<Card> get hand => List.unmodifiable(_hand);
+  Hand get activeHand => hands[activeHandIndex];
+
+  // For simplicity, these getters will work on the first hand for now.
+  // This will need to be updated when we have multiple hands.
+  int get score => activeHand.score;
+  bool get isBlackjack => activeHand.isBlackjack;
+  List<Card> get hand => activeHand.cards; // Keep this for compatibility for now
 
   void addCard(Card card) {
-    _hand.add(card);
+    activeHand.addCard(card);
   }
 
   void clearHand() {
-    _hand.clear();
+    hands.clear();
+    hands.add(Hand());
+    activeHandIndex = 0;
   }
-
-  int get score {
-    int total = 0;
-    int aceCount = 0;
-
-    for (final card in _hand) {
-      total += card.rank.value;
-      if (card.rank == Rank.ace) {
-        aceCount++;
-      }
-    }
-
-    while (total <= 11 && aceCount > 0) {
-      total += 10;
-      aceCount--;
-    }
-
-    return total;
-  }
-
-  bool get isBlackjack => _hand.length == 2 && score == 21;
 }
