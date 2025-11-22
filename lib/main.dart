@@ -113,11 +113,7 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
   Widget _buildPlayingView() {
     return Column(
       children: [
-        _buildHandView(
-          'Dealer',
-          _presenter.board.dealer.activeHand,
-          hideFirstCard: _presenter.board.state != GameState.roundOver,
-        ),
+        _buildHandView('Dealer', _presenter.board.dealer.activeHand),
         const SizedBox(height: 24),
         ..._presenter.board.player.hands.map((hand) {
           final handIndex = _presenter.board.player.hands.indexOf(hand);
@@ -164,13 +160,15 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     final board = _presenter.board;
     switch (board.state) {
       case GameState.betting:
-        return const SizedBox.shrink(); // No buttons during betting
+        return const SizedBox.shrink();
       case GameState.offeringInsurance:
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: board.canTakeInsurance ? _presenter.takeInsurance : null,
+              onPressed: board.canTakeInsurance
+                  ? _presenter.takeInsurance
+                  : null,
               child: const Text('Take Insurance'),
             ),
             const SizedBox(width: 16),
@@ -196,7 +194,10 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
               child: const Text('Split'),
             ),
             const SizedBox(width: 12),
-            ElevatedButton(onPressed: _presenter.stand, child: const Text('Stand')),
+            ElevatedButton(
+              onPressed: _presenter.stand,
+              child: const Text('Stand'),
+            ),
           ],
         );
       case GameState.roundOver:
@@ -207,12 +208,7 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     }
   }
 
-  Widget _buildHandView(
-    String title,
-    Hand hand, {
-    bool hideFirstCard = false,
-    bool isActive = false,
-  }) {
+  Widget _buildHandView(String title, Hand hand, {bool isActive = false}) {
     return Container(
       decoration: isActive
           ? BoxDecoration(
@@ -228,19 +224,14 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$title (Score: ${hideFirstCard ? '??' : hand.score}, Bet: \$${hand.bet.toStringAsFixed(0)})',
+            '$title (Score: ${hand.score}, Bet: \$${hand.bet.toStringAsFixed(0)})',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: List.generate(hand.cards.length, (index) {
-                if (index == 0 && hideFirstCard) {
-                  return const HiddenCardView();
-                }
-                return CardView(card: hand.cards[index]);
-              }),
+              children: hand.cards.map((card) => CardView(card: card)).toList(),
             ),
           ),
         ],

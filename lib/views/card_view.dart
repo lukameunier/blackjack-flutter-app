@@ -4,41 +4,6 @@ import 'package:blackjack/models/card.dart' as playing_card;
 import 'package:blackjack/models/suit.dart';
 import 'package:flutter/material.dart';
 
-class HiddenCardView extends StatelessWidget {
-  const HiddenCardView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 80,
-      height: 120,
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black87, width: 1.5),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: const [
-          BoxShadow(blurRadius: 4, offset: Offset(1, 2), color: Colors.black26),
-        ],
-      ),
-      child: Center(
-        child: Container(
-          width: 42,
-          height: 70,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.white70, width: 1),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class CardView extends StatelessWidget {
   const CardView({super.key, required this.card});
 
