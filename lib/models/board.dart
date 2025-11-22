@@ -28,6 +28,11 @@ class Board {
 
   Player get player => players.first;
 
+  bool get canSurrender =>
+      state == GameState.playing &&
+      player.hands.length == 1 && // Cannot surrender after a split
+      player.activeHand.cards.length == 2;
+
   bool get canDoubleDown =>
       state == GameState.playing &&
       player.activeHand.cards.length == 2 &&
@@ -91,6 +96,12 @@ class Board {
     }
   }
 
+  void surrender() {
+    if (!canSurrender) return;
+    player.activeHand.isSurrendered = true;
+    _endRound();
+  }
+
   void hit() {
     if (state != GameState.playing) return;
 
@@ -150,7 +161,7 @@ class Board {
 
   void _endRound() {
     state = GameState.roundOver;
-    if (player.hands.any((hand) => hand.score <= 21)) {
+    if (player.hands.any((hand) => hand.score <= 21 && !hand.isSurrendered)) {
       dealer.playTurn(deck);
     }
     _calculatePayouts();
@@ -170,7 +181,9 @@ class Board {
   }
 
   GameResult getResultForHand(Hand hand) {
-    if (hand.isNaturalBlackjack && !dealer.isBlackjack) {
+    if (hand.isSurrendered) {
+      return GameResult('You Surrendered', hand.bet * 0.5);
+    } else if (hand.isNaturalBlackjack && !dealer.isBlackjack) {
       return GameResult('Blackjack! You Win!', hand.bet * 2.5);
     } else if (hand.isNaturalBlackjack && dealer.isBlackjack) {
       return GameResult('Push (Both have Blackjack)', hand.bet);

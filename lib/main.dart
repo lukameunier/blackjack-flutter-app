@@ -145,8 +145,8 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
         final result = _presenter.board.getResultForHand(hand);
         final payoutInfo = result.payout > 0
             ? (result.payout == hand.bet
-                  ? ' (Push)'
-                  : ' (+${(result.payout - hand.bet).toStringAsFixed(2)})')
+                ? ' (Push)'
+                : ' (+${(result.payout - hand.bet).toStringAsFixed(2)})')
             : ' (-${hand.bet.toStringAsFixed(2)})';
         return Text(
           '${result.message}$payoutInfo',
@@ -160,15 +160,13 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     final board = _presenter.board;
     switch (board.state) {
       case GameState.betting:
-        return const SizedBox.shrink();
+        return const SizedBox.shrink(); // No buttons during betting
       case GameState.offeringInsurance:
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: board.canTakeInsurance
-                  ? _presenter.takeInsurance
-                  : null,
+              onPressed: board.canTakeInsurance ? _presenter.takeInsurance : null,
               child: const Text('Take Insurance'),
             ),
             const SizedBox(width: 16),
@@ -179,25 +177,25 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
           ],
         );
       case GameState.playing:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        return Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12.0,
+          runSpacing: 12.0,
           children: [
             ElevatedButton(onPressed: _presenter.hit, child: const Text('Hit')),
-            const SizedBox(width: 12),
             ElevatedButton(
               onPressed: board.canDoubleDown ? _presenter.doubleDown : null,
               child: const Text('Double'),
             ),
-            const SizedBox(width: 12),
             ElevatedButton(
               onPressed: board.canSplit ? _presenter.split : null,
               child: const Text('Split'),
             ),
-            const SizedBox(width: 12),
             ElevatedButton(
-              onPressed: _presenter.stand,
-              child: const Text('Stand'),
+              onPressed: board.canSurrender ? _presenter.surrender : null,
+              child: const Text('Surrender'),
             ),
+            ElevatedButton(onPressed: _presenter.stand, child: const Text('Stand')),
           ],
         );
       case GameState.roundOver:
@@ -208,7 +206,11 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
     }
   }
 
-  Widget _buildHandView(String title, Hand hand, {bool isActive = false}) {
+  Widget _buildHandView(
+    String title,
+    Hand hand, {
+    bool isActive = false,
+  }) {
     return Container(
       decoration: isActive
           ? BoxDecoration(

@@ -29,6 +29,12 @@ class HomePagePresenter {
     _view.refresh();
   }
 
+  void surrender() {
+    if (!board.canSurrender) return;
+    _board.surrender();
+    _view.refresh();
+  }
+
   void hit() {
     if (board.state != GameState.playing) return;
     _board.hit();

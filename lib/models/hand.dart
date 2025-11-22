@@ -6,6 +6,7 @@ class Hand {
 
   final List<Card> _cards = [];
   double bet;
+  bool isSurrendered = false;
 
   List<Card> get cards => List.unmodifiable(_cards);
 
@@ -19,6 +20,8 @@ class Hand {
 
   void clear() {
     _cards.clear();
+    bet = 0;
+    isSurrendered = false;
   }
 
   int get score {
