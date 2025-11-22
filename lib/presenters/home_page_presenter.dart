@@ -1,4 +1,5 @@
 import 'package:blackjack/models/board.dart';
+import 'package:blackjack/services/wallet_service.dart';
 
 abstract class HomePageView {
   void refresh();
@@ -8,23 +9,38 @@ abstract class HomePageView {
 class HomePagePresenter {
   HomePagePresenter(this._view, {bool testMode = false}) {
     _board = Board(testMode: testMode);
+    _walletService = WalletService();
+    _loadInitialWallet();
   }
 
   final HomePageView _view;
   late Board _board;
+  late WalletService _walletService;
 
   Board get board => _board;
+
+  Future<void> _loadInitialWallet() async {
+    final amount = await _walletService.loadWallet();
+    _board.player.wallet = amount;
+    _view.refresh();
+  }
+
+  Future<void> _saveWallet() async {
+    await _walletService.saveWallet(_board.player.wallet);
+  }
 
   void placeBetAndDeal(double amount) {
     if (board.reshuffleNeeded) {
       _view.showReshuffleMessage();
     }
     _board.placeBetAndDeal(amount);
+    _saveWallet(); // Save after betting
     _view.refresh();
   }
 
   void takeInsurance() {
     _board.takeInsurance();
+    _saveWallet();
     _view.refresh();
   }
 
@@ -36,6 +52,7 @@ class HomePagePresenter {
   void surrender() {
     if (!board.canSurrender) return;
     _board.surrender();
+    _saveWallet();
     _view.refresh();
   }
 
@@ -48,18 +65,21 @@ class HomePagePresenter {
   void stand() {
     if (board.state != GameState.playing) return;
     _board.stand();
+    _saveWallet(); // Save after payouts
     _view.refresh();
   }
 
   void doubleDown() {
     if (!board.canDoubleDown) return;
     _board.doubleDown();
+    _saveWallet();
     _view.refresh();
   }
 
   void split() {
     if (!board.canSplit) return;
     _board.split();
+    _saveWallet();
     _view.refresh();
   }
 
