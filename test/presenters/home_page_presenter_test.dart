@@ -8,10 +8,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 class MockHomePageView implements HomePageView {
   bool hasBeenRefreshed = false;
+  bool reshuffleMessageWasShown = false;
 
   @override
   void refresh() {
     hasBeenRefreshed = true;
+  }
+
+  @override
+  void showReshuffleMessage() {
+    reshuffleMessageWasShown = true;
   }
 }
 
@@ -38,6 +44,20 @@ void main() {
     expect(presenter.board.player.hands.first.bet, 10);
     expect(presenter.board.player.hands.first.cards.length, 2);
     expect(presenter.board.player.hands.first.score, 20); // Unshuffled: King + King
+    expect(mockView.hasBeenRefreshed, isTrue);
+  });
+
+  test('placeBetAndDeal() shows reshuffle message when deck is low', () {
+    // Arrange
+    presenter.board.reshuffleNeeded = true;
+    expect(mockView.reshuffleMessageWasShown, isFalse);
+
+    // Act
+    presenter.placeBetAndDeal(10);
+
+    // Assert
+    expect(mockView.reshuffleMessageWasShown, isTrue);
+    expect(presenter.board.reshuffleNeeded, isFalse); // The board should reset the flag
     expect(mockView.hasBeenRefreshed, isTrue);
   });
 
@@ -82,7 +102,7 @@ void main() {
       expect(presenter.board.player.hands.length, 2);
       expect(presenter.board.player.hands[0].cards.length, 2);
       expect(presenter.board.player.hands[1].cards.length, 2);
-      expect(presenter.board.player.wallet, initialWallet - 10); 
+      expect(presenter.board.player.wallet, initialWallet - 10);
       expect(mockView.hasBeenRefreshed, isTrue);
     });
 
@@ -113,7 +133,7 @@ void main() {
       board.deck = Deck(shuffle: false);
 
       board.player.addCard(Card(rank: Rank.ten, suit: Suit.clubs));
-      board.dealer.addCard(Card(rank: Rank.ace, suit: Suit.spades)); 
+      board.dealer.addCard(Card(rank: Rank.ace, suit: Suit.spades));
       board.player.addCard(Card(rank: Rank.ten, suit: Suit.hearts));
       board.dealer.addCard(Card(rank: Rank.king, suit: Suit.spades));
 
