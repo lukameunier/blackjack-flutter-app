@@ -44,7 +44,7 @@ class HomePagePresenter {
 
   void declineInsurance() {
     _board.declineInsurance();
-    // No need to save wallet here as it hasn't changed
+    _saveWallet(); // Save wallet in case the round ends
     _view.refresh();
   }
 
