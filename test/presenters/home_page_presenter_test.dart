@@ -82,7 +82,20 @@ void main() {
       expect(presenter.board.player.hands.length, 2);
       expect(presenter.board.player.hands[0].cards.length, 2);
       expect(presenter.board.player.hands[1].cards.length, 2);
-      expect(presenter.board.player.wallet, initialWallet - 10);
+      expect(presenter.board.player.wallet, initialWallet - 10); 
+      expect(mockView.hasBeenRefreshed, isTrue);
+    });
+
+    test('surrender() ends the round and returns half the bet', () {
+      final initialWallet = presenter.board.player.wallet;
+      final initialBet = presenter.board.player.activeHand.bet;
+
+      presenter.surrender();
+
+      expect(presenter.board.state, GameState.roundOver);
+      expect(presenter.board.player.activeHand.isSurrendered, isTrue);
+      // Wallet is updated after payouts are calculated at the end of the round
+      expect(presenter.board.player.wallet, initialWallet + (initialBet * 0.5));
       expect(mockView.hasBeenRefreshed, isTrue);
     });
   });
@@ -94,18 +107,15 @@ void main() {
       board.dealer.clearHands();
       board.player.wallet = 1000;
 
-      // Manually set up the bet for the hand
       board.player.wallet -= 100;
       board.player.activeHand.bet = 100;
 
-      // Manually rig the deck so dealer gets an Ace
       board.deck = Deck(shuffle: false);
-      // To get specific cards, we need to know the unshuffled order.
-      // Let's manually deal cards instead.
+
       board.player.addCard(Card(rank: Rank.ten, suit: Suit.clubs));
-      board.dealer.addCard(Card(rank: Rank.ace, suit: Suit.spades)); // Dealer shows Ace
+      board.dealer.addCard(Card(rank: Rank.ace, suit: Suit.spades)); 
       board.player.addCard(Card(rank: Rank.ten, suit: Suit.hearts));
-      board.dealer.addCard(Card(rank: Rank.king, suit: Suit.spades)); // Dealer has blackjack
+      board.dealer.addCard(Card(rank: Rank.king, suit: Suit.spades));
 
       board.state = GameState.offeringInsurance;
       mockView.hasBeenRefreshed = false;
@@ -116,8 +126,6 @@ void main() {
       presenter.takeInsurance();
 
       expect(presenter.board.player.insuranceBet, 50);
-      // Player loses 100 on main bet, but wins 100 on insurance (50 * 2).
-      // Net change is 0. So wallet should be back to 1000.
       expect(presenter.board.player.wallet, initialWallet);
       expect(presenter.board.state, GameState.roundOver);
       expect(mockView.hasBeenRefreshed, isTrue);
@@ -127,7 +135,6 @@ void main() {
       presenter.declineInsurance();
 
       expect(presenter.board.player.insuranceBet, 0);
-      // Player just loses their main bet of 100.
       expect(presenter.board.player.wallet, 1000 - 100);
       expect(presenter.board.state, GameState.roundOver);
       expect(mockView.hasBeenRefreshed, isTrue);
