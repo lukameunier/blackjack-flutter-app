@@ -16,3 +16,14 @@ enum Rank {
   const Rank(this.value);
   final int value;
 }
+
+extension RankExtension on Rank {
+  String get displayName {
+    String n = name;
+    return n[0].toUpperCase() + n.substring(1);
+  }
+
+  int get displayValue {
+    return value;
+  }
+}

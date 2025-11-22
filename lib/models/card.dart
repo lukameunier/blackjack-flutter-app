@@ -7,12 +7,8 @@ class Card {
   final Rank rank;
   final Suit suit;
 
-  get value {
-    return rank.value;
-  }
-
   @override
   String toString() {
-    return '$rank$suit';
+    return '${rank.displayValue} ${suit.displayName}';
   }
 }
