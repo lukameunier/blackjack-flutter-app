@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Table</title>
+    <title>3D Physics</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background-color: #113322; }
         canvas { display: block; }
@@ -14,78 +14,126 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
             }
         }
     </script>
     <script type="module">
         import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { DragControls } from 'three/addons/controls/DragControls.js';
 
-        // Scene, Camera, Renderer
+        // =========== THREE.js (Visuals) ===========
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Grid
         const gridHelper = new THREE.GridHelper(10, 10);
         scene.add(gridHelper);
-        
-        // Draggable Objects
-        const objects = [];
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        
-        const colors = [0x00ff00, 0xff0000, 0x0000ff];
-        for (let i = 0; i < 3; i++) {
-            const cube = new THREE.Mesh(
-                geometry,
-                new THREE.MeshStandardMaterial({ color: colors[i] })
-            );
-            cube.position.set(-2 + i * 2, 0.5, 0);
-            scene.add(cube);
-            objects.push(cube);
-        }
 
-        // Light
         const light = new THREE.DirectionalLight(0xffffff, 3);
         light.position.set(1, 3, 2).normalize();
         scene.add(light);
         scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-        // Camera position
-        camera.position.set(0, 5, 5);
-
-        // Controls
+        camera.position.set(2, 5, 8);
         const orbitControls = new OrbitControls(camera, renderer.domElement);
-        orbitControls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
-	      orbitControls.dampingFactor = 0.05;
 
-        const dragControls = new DragControls(objects, camera, renderer.domElement);
-        
-        // Prevent orbit controls while dragging
-        dragControls.addEventListener('dragstart', function (event) {
-            orbitControls.enabled = false;
-        });
-        dragControls.addEventListener('dragend', function (event) {
-            orbitControls.enabled = true;
+        // =========== CANNON.js (Physics) ===========
+        const physicsWorld = new CANNON.World({
+            gravity: new CANNON.Vec3(0, -9.82, 0),
         });
 
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            orbitControls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
-            renderer.render(scene, camera);
+        const groundBody = new CANNON.Body({
+            type: CANNON.Body.STATIC,
+            shape: new CANNON.Plane(),
+        });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        physicsWorld.addBody(groundBody);
+
+        // --- The Cubes ---
+        const objectsToUpdate = [];
+        const visualMeshes = []; // For DragControls
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+        const colors = [0x00ff00, 0xff0000, 0x0000ff];
+        for (let i = 0; i < 3; i++) {
+            const material = new THREE.MeshStandardMaterial({ color: colors[i] });
+            const mesh = new THREE.Mesh(boxGeometry, material);
+            mesh.position.set(-2 + i * 2, 2 + i * 1.5, 0);
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+            const body = new CANNON.Body({
+                mass: 1,
+                shape: shape,
+                position: new CANNON.Vec3(mesh.position.x, mesh.position.y, mesh.position.z),
+            });
+            physicsWorld.addBody(body);
+
+            objectsToUpdate.push({ mesh, body });
+            visualMeshes.push(mesh);
         }
 
-        // Handle window resizing
+        // =========== Interactive Controls ===========
+        const dragControls = new DragControls(visualMeshes, camera, renderer.domElement);
+        
+        dragControls.addEventListener('dragstart', function (event) {
+            orbitControls.enabled = false;
+            // Find the body that corresponds to the dragged mesh
+            const object = objectsToUpdate.find(o => o.mesh === event.object);
+            if (object) {
+                // Make the body kinematic so it's not affected by gravity while dragged
+                object.body.type = CANNON.Body.KINEMATIC;
+            }
+        });
+        
+        dragControls.addEventListener('drag', function (event) {
+            const object = objectsToUpdate.find(o => o.mesh === event.object);
+            if (object) {
+                // Update the physics body's position to match the visual mesh
+                object.body.position.copy(event.object.position);
+                object.body.velocity.set(0, 0, 0); // Prevent it from flying off
+            }
+        });
+
+        dragControls.addEventListener('dragend', function (event) {
+            orbitControls.enabled = true;
+            const object = objectsToUpdate.find(o => o.mesh === event.object);
+            if (object) {
+                // Make the body dynamic again so it falls and collides
+                object.body.type = CANNON.Body.DYNAMIC;
+            }
+        });
+
+        // =========== Animation Loop ===========
+        const clock = new THREE.Clock();
+
+        function animate() {
+            const deltaTime = clock.getDelta();
+            physicsWorld.step(1 / 60, deltaTime, 3);
+
+            for (const object of objectsToUpdate) {
+                // If the body is NOT kinematic, update the visual from physics
+                if (object.body.type !== CANNON.Body.KINEMATIC) {
+                    object.mesh.position.copy(object.body.position);
+                    object.mesh.quaternion.copy(object.body.quaternion);
+                }
+            }
+
+            orbitControls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.render(scene, camera);
         });
 
         animate();
