@@ -10,32 +10,17 @@ import 'package:mockito/mockito.dart';
 
 import 'home_page_presenter_test.mocks.dart';
 
-class MockHomePageView implements HomePageView {
-  bool hasBeenRefreshed = false;
-  bool reshuffleMessageWasShown = false;
-
-  @override
-  void refresh() {
-    hasBeenRefreshed = true;
-  }
-
-  @override
-  void showReshuffleMessage() {
-    reshuffleMessageWasShown = true;
-  }
-}
+// Aucun mock de vue n'est plus nécessaire grâce au ChangeNotifier
 
 @GenerateMocks([WalletService])
 void main() {
   late HomePagePresenter presenter;
-  late MockHomePageView mockView;
   late MockWalletService mockWalletService;
 
   setUp(() {
-    mockView = MockHomePageView();
     mockWalletService = MockWalletService();
+    // On injecte le mock dans le constructeur
     presenter = HomePagePresenter(
-      mockView,
       walletService: mockWalletService,
       testMode: true,
     );
@@ -44,83 +29,111 @@ void main() {
     when(mockWalletService.saveWallet(any)).thenAnswer((_) async {});
   });
 
-  test('init() loads the wallet and refreshes the view', () async {
+  test('init() loads the wallet and notifies listeners', () async {
+    int listenerCallCount = 0;
+    presenter.addListener(() => listenerCallCount++);
+
     await presenter.init();
 
     expect(presenter.board.player.wallet, 1000.0);
     verify(mockWalletService.loadWallet()).called(1);
-    expect(mockView.hasBeenRefreshed, isTrue);
+    expect(listenerCallCount, 1);
   });
 
-  test('placeBetAndDeal() saves the wallet', () async {
-    await presenter.init();
+  test('placeBetAndDeal() saves the wallet and notifies listeners', () {
+    presenter.board.player.wallet = 1000.0; // État initial
+    int listenerCallCount = 0;
+    presenter.addListener(() => listenerCallCount++);
+
     presenter.placeBetAndDeal(10);
 
     verify(mockWalletService.saveWallet(990.0));
+    expect(listenerCallCount, 1);
   });
 
   test(
-    'stand() with a push saves the wallet with original bet returned',
+    'stand() with a push saves the wallet and notifies listeners',
     () async {
-      await presenter.init();
-      presenter.placeBetAndDeal(10);
+      await presenter.init(); // Met le portefeuille à 1000
+      presenter.placeBetAndDeal(10); // Met le portefeuille à 990 et sauvegarde
+
+      int listenerCallCount = 0;
+      presenter.addListener(() => listenerCallCount++);
 
       presenter.stand();
 
-      // With a predictable deck, Player gets 20 (K+J) and Dealer gets 20 (Q+10).
-      // This is a Push. The player gets their bet back.
       // Wallet: 1000 - 10 (bet) + 10 (payout) = 1000
       verify(mockWalletService.saveWallet(1000.0));
+      expect(listenerCallCount, 1);
     },
   );
 
-  test('surrender() saves the wallet with half the bet returned', () async {
+  test('surrender() saves the wallet and notifies listeners', () async {
     await presenter.init();
     presenter.placeBetAndDeal(20);
+
+    int listenerCallCount = 0;
+    presenter.addListener(() => listenerCallCount++);
 
     presenter.surrender();
 
     // Wallet: 1000 - 20 (bet) + 10 (surrender) = 990
     verify(mockWalletService.saveWallet(990.0));
+    expect(listenerCallCount, 1);
   });
 
-  test('placeBetAndDeal() shows reshuffle message when needed', () {
-    presenter.board.reshuffleNeeded = true;
-    presenter.placeBetAndDeal(10);
-
-    expect(mockView.reshuffleMessageWasShown, isTrue);
-  });
-
-  test('hit() adds a card to the hand', () async {
+  test('hit() adds a card to the hand and notifies listeners', () async {
     await presenter.init();
     presenter.placeBetAndDeal(10);
     final initialCardCount = presenter.board.player.activeHand.cards.length;
 
+    int listenerCallCount = 0;
+    presenter.addListener(() => listenerCallCount++);
+
     presenter.hit();
 
     expect(presenter.board.player.activeHand.cards.length, initialCardCount + 1);
-    expect(mockView.hasBeenRefreshed, isTrue);
+    expect(listenerCallCount, 1);
+  });
+
+  test('nextRound() resets the board and notifies listeners', () {
+    // Given a board in a round-over state
+    presenter.board.state = GameState.roundOver;
+    presenter.board.player.addCard(Card(rank: Rank.ace, suit: Suit.spades));
+    presenter.board.dealer.addCard(Card(rank: Rank.king, suit: Suit.hearts));
+    
+    int listenerCallCount = 0;
+    presenter.addListener(() => listenerCallCount++);
+
+    // When nextRound is called
+    presenter.nextRound();
+
+    // Then the board is reset to betting state and listeners are notified
+    expect(presenter.board.state, GameState.betting);
+    expect(presenter.board.player.activeHand.cards.isEmpty, isTrue);
+    expect(presenter.board.dealer.activeHand.cards.isEmpty, isTrue);
+    expect(listenerCallCount, 1);
   });
 
   group('Actions with specific hands', () {
     test('doubleDown() on a win saves the correct wallet amount', () async {
       await presenter.init();
-      // Manually set up the hand for a double down scenario
+      // Setup manuel de la main
       presenter.board.placeBetAndDeal(10);
       presenter.board.player.clearHands();
       presenter.board.dealer.clearHands();
       presenter.board.player.activeHand.bet = 10;
       presenter.board.player.wallet = 990;
       presenter.board.player.addCard(Card(rank: Rank.six, suit: Suit.clubs));
-      presenter.board.player.addCard(Card(rank: Rank.five, suit: Suit.clubs)); // Player has 11
+      presenter.board.player.addCard(Card(rank: Rank.five, suit: Suit.clubs)); // Le joueur a 11
       presenter.board.dealer.addCard(Card(rank: Rank.ten, suit: Suit.hearts));
-      presenter.board.dealer.addCard(Card(rank: Rank.six, suit: Suit.hearts)); // Dealer has 16
+      presenter.board.dealer.addCard(Card(rank: Rank.six, suit: Suit.hearts)); // Le croupier a 16
 
-      presenter.doubleDown(); // Player draws K of spades -> 21. Dealer hits and busts.
+      presenter.doubleDown(); // Le joueur tire un Roi -> 21. Le croupier saute.
 
-      // Wallet: 990 (start) - 10 (double) = 980. Bet is now 20.
-      // Player wins. Payout is 20 * 2 = 40.
-      // Final wallet = 980 + 40 = 1020.
+      // Wallet: 990 (début) - 10 (double) = 980. La mise est maintenant 20.
+      // Le joueur gagne. Le gain est 20 * 2 = 40.
+      // Wallet final = 980 + 40 = 1020.
       verify(mockWalletService.saveWallet(1020.0));
     });
 
@@ -136,7 +149,7 @@ void main() {
 
       presenter.split();
 
-      // Wallet: 990 (start) - 10 (for the split) = 980
+      // Wallet: 990 (début) - 10 (pour le split) = 980
       verify(mockWalletService.saveWallet(980.0));
       expect(presenter.board.player.hands.length, 2);
     });
@@ -145,46 +158,46 @@ void main() {
   group('Insurance', () {
     setUp(() async {
       await presenter.init();
-      // Manually set up the insurance scenario
+      // Setup manuel du scénario d'assurance
       final board = presenter.board;
       board.player.clearHands();
       board.dealer.clearHands();
       board.player.activeHand.bet = 100;
-      board.player.wallet = 900; // 1000 - 100 bet
-      board.dealer.addCard(Card(rank: Rank.ace, suit: Suit.spades)); // Dealer shows Ace
+      board.player.wallet = 900; // 1000 - 100 de mise
+      board.dealer.addCard(Card(rank: Rank.ace, suit: Suit.spades)); // Le croupier montre un As
       board.state = GameState.offeringInsurance;
-      mockView.hasBeenRefreshed = false;
+      presenter.notifyListeners(); // Simule la mise à jour de la vue
     });
 
     test('takeInsurance() with dealer blackjack has neutral payout', () {
       presenter.board.dealer.addCard(Card(rank: Rank.king, suit: Suit.spades));
       presenter.takeInsurance();
 
-      // Wallet: 900 (start) - 50 (insurance) = 850.
-      // Main bet lost (-100), insurance won (+100).
-      // Final wallet: 850 + 150 (payout) = 1000.
+      // Wallet: 900 (début) - 50 (assurance) = 850.
+      // Mise principale perdue (-100), assurance gagnée (+100).
+      // Wallet final: 850 + 100 (mise principale) + 50 (assurance) = 1000.
       verify(mockWalletService.saveWallet(1000.0));
     });
 
     test('takeInsurance() with no dealer blackjack loses insurance bet', () {
       presenter.board.dealer.addCard(Card(rank: Rank.five, suit: Suit.spades));
       presenter.board.player.addCard(Card(rank: Rank.ten, suit: Suit.clubs));
-      presenter.board.player.addCard(Card(rank: Rank.ten, suit: Suit.hearts)); // Player has 20
+      presenter.board.player.addCard(Card(rank: Rank.ten, suit: Suit.hearts)); // Joueur a 20
 
-      presenter.takeInsurance(); // Wallet: 850. Insurance bet is lost.
-      presenter.stand(); // Player stands on 20. Dealer (16) hits and busts.
+      presenter.takeInsurance(); // Wallet: 850. L'assurance est perdue.
+      presenter.stand(); // Joueur reste à 20. Le croupier (16) saute.
 
-      // Main bet is won. Payout is 100 * 2 = 200.
-      // Final wallet: 850 + 200 = 1050.
+      // La mise principale est gagnée. Gain est 100 * 2 = 200.
+      // Wallet final: 850 + 200 = 1050.
       verify(mockWalletService.saveWallet(1050.0));
     });
 
     test('declineInsurance() with dealer blackjack loses main bet', () {
       presenter.board.dealer.addCard(Card(rank: Rank.king, suit: Suit.spades));
       presenter.declineInsurance();
-      
-      // Wallet: 900 (start). Main bet is lost.
-      // Final wallet: 900.
+
+      // Wallet: 900 (début). La mise principale est perdue.
+      // Wallet final: 900.
       verify(mockWalletService.saveWallet(900.0));
     });
   });
@@ -193,25 +206,25 @@ void main() {
     test('Player bust on hit ends round and loses bet', () async {
       await presenter.init();
       presenter.placeBetAndDeal(10);
-      // Manually rig a hand that will bust
+      // Truquer la main pour qu'elle saute
       presenter.board.player.clearHands();
       presenter.board.player.activeHand.bet = 10;
       presenter.board.player.wallet = 990;
       presenter.board.player.addCard(Card(rank: Rank.ten, suit: Suit.clubs));
-      presenter.board.player.addCard(Card(rank: Rank.six, suit: Suit.hearts)); // Player has 16
+      presenter.board.player.addCard(Card(rank: Rank.six, suit: Suit.hearts)); // Joueur a 16
 
-      presenter.hit(); // Player draws King of Spades -> 26, Bust!
+      presenter.hit(); // Joueur tire un Roi -> 26, Bust!
 
       expect(presenter.board.state, GameState.roundOver);
-      // Wallet: 990 (start). Bet is lost.
-      // Final wallet: 990.
+      // Wallet: 990 (début). La mise est perdue.
+      // Le wallet ne change pas, mais on vérifie que la sauvegarde est appelée à la fin du tour du joueur.
       verify(mockWalletService.saveWallet(990.0));
     });
 
     test('Split hand with one push and one loss has correct final wallet', () async {
       await presenter.init();
-      // Manually set up a split scenario
-      presenter.board.placeBetAndDeal(10);
+      // Setup manuel du split
+      presenter.placeBetAndDeal(10);
       presenter.board.player.clearHands();
       presenter.board.dealer.clearHands();
       presenter.board.player.activeHand.bet = 10;
@@ -219,19 +232,19 @@ void main() {
       presenter.board.player.addCard(Card(rank: Rank.eight, suit: Suit.clubs));
       presenter.board.player.addCard(Card(rank: Rank.eight, suit: Suit.spades));
       presenter.board.dealer.addCard(Card(rank: Rank.ten, suit: Suit.hearts));
-      presenter.board.dealer.addCard(Card(rank: Rank.seven, suit: Suit.hearts)); // Dealer has 17
+      presenter.board.dealer.addCard(Card(rank: Rank.seven, suit: Suit.hearts)); // Le croupier a 17
 
-      presenter.split(); // Wallet is now 980
-      
-      // First hand gets a 9 -> 17. Player stands.
+      presenter.split(); // Wallet est maintenant 980
+
+      // Première main reçoit un 9 -> 17. Le joueur reste.
       presenter.stand();
 
-      // Second hand gets an 8 -> 16. Player stands.
+      // Seconde main reçoit un 8 -> 16. Le joueur reste.
       presenter.stand();
 
-      // Hand 1 (17) is a PUSH against Dealer (17) -> Bet of 10 is returned.
-      // Hand 2 (16) LOSES to Dealer (17) -> Bet of 10 is lost.
-      // Wallet: 980 (after split) + 10 (push) + 0 (loss) = 990
+      // Main 1 (17) est un PUSH contre le croupier (17) -> Mise de 10 est retournée.
+      // Main 2 (16) PERD contre le croupier (17) -> Mise de 10 est perdue.
+      // Wallet: 980 (après split) + 10 (push) + 0 (perte) = 990
       verify(mockWalletService.saveWallet(990.0));
     });
   });
