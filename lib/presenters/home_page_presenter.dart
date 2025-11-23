@@ -1,17 +1,12 @@
 import 'package:blackjack/models/board.dart';
 import 'package:blackjack/services/wallet_service.dart';
+import 'package:flutter/foundation.dart';
 
-abstract class HomePageView {
-  void refresh();
-  void showReshuffleMessage();
-}
-
-class HomePagePresenter {
-  HomePagePresenter(this._view, {WalletService? walletService, bool testMode = false})
+class HomePagePresenter with ChangeNotifier {
+  HomePagePresenter({WalletService? walletService, bool testMode = false})
       : _walletService = walletService ?? WalletService(),
         _board = Board(testMode: testMode);
 
-  final HomePageView _view;
   final Board _board;
   final WalletService _walletService;
 
@@ -20,7 +15,7 @@ class HomePagePresenter {
   Future<void> init() async {
     final amount = await _walletService.loadWallet();
     board.player.wallet = amount;
-    _view.refresh();
+    notifyListeners();
   }
 
   Future<void> _saveWallet() async {
@@ -28,62 +23,59 @@ class HomePagePresenter {
   }
 
   void placeBetAndDeal(double amount) {
-    if (board.reshuffleNeeded) {
-      _view.showReshuffleMessage();
-    }
     _board.placeBetAndDeal(amount);
     _saveWallet();
-    _view.refresh();
+    notifyListeners();
   }
 
   void takeInsurance() {
     _board.takeInsurance();
     _saveWallet();
-    _view.refresh();
+    notifyListeners();
   }
 
   void declineInsurance() {
     _board.declineInsurance();
-    _saveWallet(); // Save wallet in case the round ends
-    _view.refresh();
+    _saveWallet();
+    notifyListeners();
   }
 
   void surrender() {
     if (!board.canSurrender) return;
     _board.surrender();
     _saveWallet();
-    _view.refresh();
+    notifyListeners();
   }
 
   void hit() {
     if (board.state != GameState.playing) return;
     _board.hit();
-    _view.refresh();
+    notifyListeners();
   }
 
   void stand() {
     if (board.state != GameState.playing) return;
     _board.stand();
     _saveWallet();
-    _view.refresh();
+    notifyListeners();
   }
 
   void doubleDown() {
     if (!board.canDoubleDown) return;
     _board.doubleDown();
     _saveWallet();
-    _view.refresh();
+    notifyListeners();
   }
 
   void split() {
     if (!board.canSplit) return;
     _board.split();
     _saveWallet();
-    _view.refresh();
+    notifyListeners();
   }
 
   void nextRound() {
     _board.nextRound();
-    _view.refresh();
+    notifyListeners();
   }
 }

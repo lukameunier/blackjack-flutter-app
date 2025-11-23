@@ -34,29 +34,20 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> implements HomePageView {
+class _MyHomePageState extends State<MyHomePage> {
   late HomePagePresenter _presenter;
 
   @override
   void initState() {
     super.initState();
-    _presenter = HomePagePresenter(this);
+    _presenter = HomePagePresenter();
     _presenter.init();
   }
 
   @override
-  void refresh() {
-    setState(() {});
-  }
-
-  @override
-  void showReshuffleMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('The dealer is shuffling a new shoe...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void dispose() {
+    _presenter.dispose();
+    super.dispose();
   }
 
   @override
@@ -69,9 +60,14 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: Text(
-                'Wallet: \$${_presenter.board.player.wallet.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.titleLarge,
+              child: AnimatedBuilder(
+                animation: _presenter,
+                builder: (context, child) {
+                  return Text(
+                    'Wallet: \$${_presenter.board.player.wallet.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  );
+                },
               ),
             ),
           ),
@@ -79,23 +75,24 @@ class _MyHomePageState extends State<MyHomePage> implements HomePageView {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _buildGameView(),
+        child: AnimatedBuilder(
+          animation: _presenter,
+          builder: (context, child) {
+            final board = _presenter.board;
+            switch (board.state) {
+              case GameState.betting:
+                return BettingView(
+                  playerWallet: board.player.wallet,
+                  onBetPlaced: (amount) => _presenter.placeBetAndDeal(amount),
+                );
+              case GameState.playing:
+              case GameState.offeringInsurance:
+              case GameState.roundOver:
+                return PlayingView(presenter: _presenter);
+            }
+          },
+        ),
       ),
     );
-  }
-
-  Widget _buildGameView() {
-    final board = _presenter.board;
-    switch (board.state) {
-      case GameState.betting:
-        return BettingView(
-          playerWallet: board.player.wallet,
-          onBetPlaced: (amount) => _presenter.placeBetAndDeal(amount),
-        );
-      case GameState.playing:
-      case GameState.offeringInsurance:
-      case GameState.roundOver:
-        return PlayingView(presenter: _presenter);
-    }
   }
 }
