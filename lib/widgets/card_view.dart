@@ -18,7 +18,8 @@ class CardView extends StatefulWidget {
   State<CardView> createState() => _CardViewState();
 }
 
-class _CardViewState extends State<CardView> with SingleTickerProviderStateMixin {
+class _CardViewState extends State<CardView>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
@@ -34,18 +35,12 @@ class _CardViewState extends State<CardView> with SingleTickerProviderStateMixin
     _slideAnimation = Tween<Offset>(
       begin: const Offset(2.0, -2.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _scaleAnimation = Tween<double>(
       begin: 0.5,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     // Condition pour l'animation
     if (widget.animateOnBuild) {
@@ -73,7 +68,8 @@ class _CardViewState extends State<CardView> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final isRed = widget.card.suit == Suit.hearts || widget.card.suit == Suit.diamonds;
+    final isRed =
+        widget.card.suit == Suit.hearts || widget.card.suit == Suit.diamonds;
     final color = isRed ? Colors.red[700]! : Colors.black87;
 
     return ScaleTransition(
@@ -89,7 +85,11 @@ class _CardViewState extends State<CardView> with SingleTickerProviderStateMixin
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.black87, width: 1.5),
             boxShadow: const [
-              BoxShadow(blurRadius: 4, offset: Offset(1, 2), color: Colors.black26),
+              BoxShadow(
+                blurRadius: 4,
+                offset: Offset(1, 2),
+                color: Colors.black26,
+              ),
             ],
           ),
           child: Stack(
@@ -115,7 +115,12 @@ class _CardViewState extends State<CardView> with SingleTickerProviderStateMixin
                   ),
                 ),
               ),
-              Center(child: Icon(widget.card.suit.icon, size: 36, color: color)),
+              Transform.translate(
+                offset: const Offset(-5.5, 0),
+                child: Center(
+                  child: Icon(widget.card.suit.icon, size: 36, color: color),
+                ),
+              ),
             ],
           ),
         ),
@@ -142,12 +147,12 @@ class _CornerLabel extends StatelessWidget {
         Text(
           rank,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 14, // Taille du texte encore réduite
             fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: 12, color: color), // Taille de l'icône encore réduite
       ],
     );
   }
