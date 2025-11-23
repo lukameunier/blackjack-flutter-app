@@ -16,11 +16,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({
-    super.key,
-    required this.isLoggedIn,
-    this.userName,
-  });
+  const MyApp({super.key, required this.isLoggedIn, this.userName});
 
   final bool isLoggedIn;
   final String? userName;
@@ -37,10 +33,7 @@ class MyApp extends StatelessWidget {
       home: isLoggedIn && userName != null
           ? MyHomePage(userName: userName!)
           : const LoginScreen(),
-      routes: {
-        // On garde la route vers /login au cas où on en aurait besoin plus tard
-        '/login': (context) => const LoginScreen(),
-      },
+      routes: {'/login': (context) => const LoginScreen()},
     );
   }
 }
@@ -99,8 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
+            icon: const Icon(Icons.logout),            onPressed: _logout,
             tooltip: 'Logout',
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -19,9 +20,7 @@ class _GameTable3dState extends State<GameTable3d> {
         _webViewController = controller;
       },
       initialSettings: InAppWebViewSettings(
-        // Permet à Three.js de fonctionner correctement
         mediaPlaybackRequiresUserGesture: false,
-        // Améliore les performances sur Android
         useHybridComposition: true,
       ),
     );

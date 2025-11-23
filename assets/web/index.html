@@ -55,22 +55,24 @@
         groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         physicsWorld.addBody(groundBody);
 
-        // --- The Cubes ---
+        // --- The Cards ---
         const objectsToUpdate = [];
-        const visualMeshes = []; // For DragControls
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const visualMeshes = [];
+        const cardWidth = 0.8;
+        const cardHeight = 1.2;
+        const cardDepth = 0.04;
+        const cardGeometry = new THREE.BoxGeometry(cardWidth, cardHeight, cardDepth);
+        const cardShape = new CANNON.Box(new CANNON.Vec3(cardWidth / 2, cardHeight / 2, cardDepth / 2));
 
-        const colors = [0x00ff00, 0xff0000, 0x0000ff];
         for (let i = 0; i < 3; i++) {
-            const material = new THREE.MeshStandardMaterial({ color: colors[i] });
-            const mesh = new THREE.Mesh(boxGeometry, material);
-            mesh.position.set(-2 + i * 2, 2 + i * 1.5, 0);
+            const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+            const mesh = new THREE.Mesh(cardGeometry, material);
+            mesh.position.set(-1.5 + i * 1.5, 2 + i, 0);
             scene.add(mesh);
 
-            const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
             const body = new CANNON.Body({
-                mass: 1,
-                shape: shape,
+                mass: 0.1, // Cards are light
+                shape: cardShape,
                 position: new CANNON.Vec3(mesh.position.x, mesh.position.y, mesh.position.z),
             });
             physicsWorld.addBody(body);
@@ -84,10 +86,8 @@
         
         dragControls.addEventListener('dragstart', function (event) {
             orbitControls.enabled = false;
-            // Find the body that corresponds to the dragged mesh
             const object = objectsToUpdate.find(o => o.mesh === event.object);
             if (object) {
-                // Make the body kinematic so it's not affected by gravity while dragged
                 object.body.type = CANNON.Body.KINEMATIC;
             }
         });
@@ -95,9 +95,8 @@
         dragControls.addEventListener('drag', function (event) {
             const object = objectsToUpdate.find(o => o.mesh === event.object);
             if (object) {
-                // Update the physics body's position to match the visual mesh
                 object.body.position.copy(event.object.position);
-                object.body.velocity.set(0, 0, 0); // Prevent it from flying off
+                object.body.velocity.set(0, 0, 0);
             }
         });
 
@@ -105,7 +104,6 @@
             orbitControls.enabled = true;
             const object = objectsToUpdate.find(o => o.mesh === event.object);
             if (object) {
-                // Make the body dynamic again so it falls and collides
                 object.body.type = CANNON.Body.DYNAMIC;
             }
         });
@@ -118,7 +116,6 @@
             physicsWorld.step(1 / 60, deltaTime, 3);
 
             for (const object of objectsToUpdate) {
-                // If the body is NOT kinematic, update the visual from physics
                 if (object.body.type !== CANNON.Body.KINEMATIC) {
                     object.mesh.position.copy(object.body.position);
                     object.mesh.quaternion.copy(object.body.quaternion);
