@@ -1,9 +1,9 @@
-// Forcing rebuild
 import 'dart:async';
 import 'package:blackjack/models/board.dart';
 import 'package:blackjack/models/card.dart' as model_card;
 import 'package:blackjack/models/hand.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
+import 'package:blackjack/widgets/action_buttons.dart';
 import 'package:blackjack/widgets/card_view.dart';
 import 'package:flutter/material.dart';
 
@@ -166,7 +166,7 @@ class _PlayingViewState extends State<PlayingView> {
           ),
         if (board.state == GameState.roundOver) _buildResultsView(context),
         const SizedBox(height: 24),
-        _buildActionButtons(context),
+        ActionButtons(presenter: widget.presenter),
       ],
     );
   }
@@ -242,55 +242,5 @@ class _PlayingViewState extends State<PlayingView> {
         );
       }).toList(),
     );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    final board = widget.presenter.board;
-    switch (board.state) {
-      case GameState.betting:
-        return const SizedBox.shrink();
-      case GameState.offeringInsurance:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: board.canTakeInsurance ? widget.presenter.takeInsurance : null,
-              child: const Text('Take Insurance'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: widget.presenter.declineInsurance,
-              child: const Text('No, Thanks'),
-            ),
-          ],
-        );
-      case GameState.playing:
-        return Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 12.0,
-          runSpacing: 12.0,
-          children: [
-            ElevatedButton(onPressed: widget.presenter.hit, child: const Text('Hit')),
-            ElevatedButton(
-              onPressed: board.canDoubleDown ? widget.presenter.doubleDown : null,
-              child: const Text('Double'),
-            ),
-            ElevatedButton(
-              onPressed: board.canSplit ? widget.presenter.split : null,
-              child: const Text('Split'),
-            ),
-            ElevatedButton(
-              onPressed: board.canSurrender ? widget.presenter.surrender : null,
-              child: const Text('Surrender'),
-            ),
-            ElevatedButton(onPressed: widget.presenter.stand, child: const Text('Stand')),
-          ],
-        );
-      case GameState.roundOver:
-        return ElevatedButton(
-          onPressed: widget.presenter.nextRound,
-          child: const Text('Next Round'),
-        );
-    }
   }
 }
