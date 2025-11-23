@@ -1,5 +1,6 @@
 import 'package:blackjack/models/board.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
+import 'package:blackjack/widgets/animated_wallet.dart';
 import 'package:blackjack/widgets/betting_view.dart';
 import 'package:blackjack/widgets/playing_view.dart';
 import 'package:flutter/material.dart';
@@ -63,10 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: AnimatedBuilder(
                 animation: _presenter,
                 builder: (context, child) {
-                  return Text(
-                    'Wallet: \$${_presenter.board.player.wallet.toStringAsFixed(2)}',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  );
+                  return AnimatedWallet(amount: _presenter.board.player.wallet);
                 },
               ),
             ),
