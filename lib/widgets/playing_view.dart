@@ -4,9 +4,10 @@ import 'package:blackjack/models/card.dart' as model_card;
 import 'package:blackjack/models/hand.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:blackjack/widgets/action_buttons.dart';
-import 'package:blackjack/widgets/card_view.dart';
+import 'package:blackjack/widgets/hand_view.dart';
 import 'package:flutter/material.dart';
 
+// Classe interne pour gérer l'état d'affichage d'une main
 class _DisplayedHand {
   final List<model_card.Card> cards = [];
   int score = 0;
@@ -135,27 +136,31 @@ class _PlayingViewState extends State<PlayingView> {
   @override
   Widget build(BuildContext context) {
     final board = widget.presenter.board;
+    final bool shouldAnimateCards = board.state != GameState.roundOver;
+
     return Column(
       children: [
-        _buildHandView(
-          context,
-          'Dealer',
-          _displayedDealerHand,
+        HandView(
+          title: 'Dealer',
+          cards: _displayedDealerHand.cards,
+          score: _displayedDealerHand.score,
+          animateCards: shouldAnimateCards,
         ),
         const SizedBox(height: 24),
         ...List.generate(board.player.hands.length, (index) {
           final handModel = board.player.hands[index];
           final displayedHand = _displayedPlayerHands[index];
           final isActive = index == board.player.activeHandIndex && board.state == GameState.playing;
-          return _buildHandView(
-            context,
-            'Player Hand ${index + 1}',
-            displayedHand,
+          return HandView(
+            title: 'Player Hand ${index + 1}',
+            cards: displayedHand.cards,
+            score: displayedHand.score,
             bet: handModel.bet,
             isActive: isActive,
             result: board.state == GameState.roundOver
                 ? board.getResultForHand(handModel)
                 : null,
+            animateCards: shouldAnimateCards,
           );
         }),
         const Spacer(),
@@ -168,62 +173,6 @@ class _PlayingViewState extends State<PlayingView> {
         const SizedBox(height: 24),
         ActionButtons(presenter: widget.presenter),
       ],
-    );
-  }
-
-  Widget _buildHandView(
-    BuildContext context,
-    String title,
-    _DisplayedHand hand, {
-    double? bet,
-    bool isActive = false,
-    GameResult? result,
-  }) {
-    final betText = bet != null ? ', Bet: \$${bet.toStringAsFixed(0)}' : '';
-    final bool shouldAnimate = widget.presenter.board.state != GameState.roundOver;
-    
-    Color? borderColor;
-    if (result != null) {
-      if (result.payout > (bet ?? 0)) {
-        borderColor = Colors.green.withAlpha(200); // Victoire
-      } else if (result.payout == (bet ?? 0)) {
-        borderColor = Colors.grey.withAlpha(200); // Égalité
-      } else {
-        borderColor = Colors.red.withAlpha(200); // Défaite
-      }
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: borderColor ?? (isActive ? Colors.deepPurple.withAlpha(128) : Colors.transparent),
-          width: 2,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$title (Score: ${hand.score}$betText)',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: hand.cards.map((card) {
-                return CardView(
-                  key: ObjectKey(card),
-                  card: card,
-                  animateOnBuild: shouldAnimate,
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
