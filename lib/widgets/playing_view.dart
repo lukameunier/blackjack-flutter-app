@@ -1,3 +1,4 @@
+// Forcing rebuild
 import 'dart:async';
 import 'package:blackjack/models/board.dart';
 import 'package:blackjack/models/card.dart' as model_card;
@@ -142,15 +143,19 @@ class _PlayingViewState extends State<PlayingView> {
           _displayedDealerHand,
         ),
         const SizedBox(height: 24),
-        ...List.generate(_displayedPlayerHands.length, (index) {
-          final hand = _displayedPlayerHands[index];
+        ...List.generate(board.player.hands.length, (index) {
+          final handModel = board.player.hands[index];
+          final displayedHand = _displayedPlayerHands[index];
           final isActive = index == board.player.activeHandIndex && board.state == GameState.playing;
           return _buildHandView(
             context,
             'Player Hand ${index + 1}',
-            hand,
-            bet: widget.presenter.board.player.hands[index].bet,
+            displayedHand,
+            bet: handModel.bet,
             isActive: isActive,
+            result: board.state == GameState.roundOver
+                ? board.getResultForHand(handModel)
+                : null,
           );
         }),
         const Spacer(),
@@ -172,20 +177,30 @@ class _PlayingViewState extends State<PlayingView> {
     _DisplayedHand hand, {
     double? bet,
     bool isActive = false,
+    GameResult? result,
   }) {
     final betText = bet != null ? ', Bet: \$${bet.toStringAsFixed(0)}' : '';
     final bool shouldAnimate = widget.presenter.board.state != GameState.roundOver;
+    
+    Color? borderColor;
+    if (result != null) {
+      if (result.payout > (bet ?? 0)) {
+        borderColor = Colors.green.withAlpha(200); // Victoire
+      } else if (result.payout == (bet ?? 0)) {
+        borderColor = Colors.grey.withAlpha(200); // Égalité
+      } else {
+        borderColor = Colors.red.withAlpha(200); // Défaite
+      }
+    }
 
     return Container(
-      decoration: isActive
-          ? BoxDecoration(
-              border: Border.all(
-                color: Colors.deepPurple.withAlpha(128),
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            )
-          : null,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: borderColor ?? (isActive ? Colors.deepPurple.withAlpha(128) : Colors.transparent),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
       padding: const EdgeInsets.all(8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,7 +217,7 @@ class _PlayingViewState extends State<PlayingView> {
                 return CardView(
                   key: ObjectKey(card),
                   card: card,
-                  animateOnBuild: shouldAnimate, // On passe la condition ici
+                  animateOnBuild: shouldAnimate,
                 );
               }).toList(),
             ),
