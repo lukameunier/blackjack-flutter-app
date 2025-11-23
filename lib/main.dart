@@ -1,9 +1,7 @@
-import 'package:blackjack/models/board.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:blackjack/widgets/animated_wallet.dart';
-import 'package:blackjack/widgets/betting_view.dart';
+import 'package:blackjack/widgets/game_table_3d.dart';
 import 'package:blackjack/widgets/login_screen.dart';
-import 'package:blackjack/widgets/playing_view.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -107,26 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: AnimatedBuilder(
-          animation: _presenter,
-          builder: (context, child) {
-            final board = _presenter.board;
-            switch (board.state) {
-              case GameState.betting:
-                return BettingView(
-                  playerWallet: board.player.wallet,
-                  onBetPlaced: (amount) => _presenter.placeBetAndDeal(amount),
-                );
-              case GameState.playing:
-              case GameState.offeringInsurance:
-              case GameState.roundOver:
-                return PlayingView(presenter: _presenter);
-            }
-          },
-        ),
-      ),
+      body: const GameTable3d(),
     );
   }
 }
