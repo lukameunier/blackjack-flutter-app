@@ -54,7 +54,7 @@ class _AnimatedWalletState extends State<AnimatedWallet>
       builder: (context, child) {
         // The text is rebuilt on every frame of the animation
         return Text(
-          'Wallet: \$${_animation.value.toStringAsFixed(2)}',
+          '\$${_animation.value.toStringAsFixed(2)}',
           style: Theme.of(context).textTheme.titleLarge,
         );
       },
