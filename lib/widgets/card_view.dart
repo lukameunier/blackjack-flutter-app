@@ -4,12 +4,24 @@ import 'package:blackjack/models/card.dart' as playing_card;
 import 'package:blackjack/models/suit.dart';
 import 'package:flutter/material.dart';
 
+const double _kCardWidth = 80.0;
+const double _kCardHeight = 120.0;
+const double _kCardBorderRadius = 8.0;
+const double _kCardBorderWidth = 1.5;
+const EdgeInsets _kCardMargin = EdgeInsets.only(right: 8.0);
+const double _kCornerPadding = 6.0;
+
+const double _kCenterIconSize = 36.0;
+const double _kCenterIconHorizontalOffset = -5.5;
+
+const double _kCornerRankFontSize = 14.0;
+const double _kCornerIconSize = 12.0;
+
+const double _kShadowBlurRadius = 4.0;
+const Offset _kShadowOffset = Offset(1, 2);
+
 class CardView extends StatefulWidget {
-  const CardView({
-    super.key,
-    required this.card,
-    this.animateOnBuild = true, // Le widget animera par défaut
-  });
+  const CardView({super.key, required this.card, this.animateOnBuild = true});
 
   final playing_card.Card card;
   final bool animateOnBuild;
@@ -42,11 +54,9 @@ class _CardViewState extends State<CardView>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    // Condition pour l'animation
     if (widget.animateOnBuild) {
       _controller.forward();
     } else {
-      // Si pas d'animation, on affiche directement l'état final
       _controller.value = 1.0;
     }
   }
@@ -54,7 +64,6 @@ class _CardViewState extends State<CardView>
   @override
   void didUpdateWidget(CardView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Au cas où le widget est reconstruit et qu'on lui demande d'arrêter d'animer
     if (!widget.animateOnBuild) {
       _controller.value = 1.0;
     }
@@ -77,17 +86,17 @@ class _CardViewState extends State<CardView>
       child: SlideTransition(
         position: _slideAnimation,
         child: Container(
-          width: 80,
-          height: 120,
-          margin: const EdgeInsets.only(right: 8),
+          width: _kCardWidth,
+          height: _kCardHeight,
+          margin: _kCardMargin,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.black87, width: 1.5),
+            borderRadius: BorderRadius.circular(_kCardBorderRadius),
+            border: Border.all(color: Colors.black87, width: _kCardBorderWidth),
             boxShadow: const [
               BoxShadow(
-                blurRadius: 4,
-                offset: Offset(1, 2),
+                blurRadius: _kShadowBlurRadius,
+                offset: _kShadowOffset,
                 color: Colors.black26,
               ),
             ],
@@ -95,8 +104,8 @@ class _CardViewState extends State<CardView>
           child: Stack(
             children: [
               Positioned(
-                top: 6,
-                left: 6,
+                top: _kCornerPadding,
+                left: _kCornerPadding,
                 child: _CornerLabel(
                   rank: widget.card.rank.shortName,
                   icon: widget.card.suit.icon,
@@ -104,8 +113,8 @@ class _CardViewState extends State<CardView>
                 ),
               ),
               Positioned(
-                bottom: 6,
-                right: 6,
+                bottom: _kCornerPadding,
+                right: _kCornerPadding,
                 child: Transform.rotate(
                   angle: math.pi,
                   child: _CornerLabel(
@@ -116,9 +125,13 @@ class _CardViewState extends State<CardView>
                 ),
               ),
               Transform.translate(
-                offset: const Offset(-5.5, 0),
+                offset: const Offset(_kCenterIconHorizontalOffset, 0),
                 child: Center(
-                  child: Icon(widget.card.suit.icon, size: 36, color: color),
+                  child: Icon(
+                    widget.card.suit.icon,
+                    size: _kCenterIconSize,
+                    color: color,
+                  ),
                 ),
               ),
             ],
@@ -147,12 +160,12 @@ class _CornerLabel extends StatelessWidget {
         Text(
           rank,
           style: TextStyle(
-            fontSize: 14, // Taille du texte encore réduite
+            fontSize: _kCornerRankFontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
-        Icon(icon, size: 12, color: color), // Taille de l'icône encore réduite
+        Icon(icon, size: _kCornerIconSize, color: color),
       ],
     );
   }
