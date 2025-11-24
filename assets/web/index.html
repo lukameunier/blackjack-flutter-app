@@ -73,7 +73,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.background = new THREE.Color(0x113322);
+        scene.background = new THREE.Color(0x000000); // Changed background to black
 
         const light = new THREE.DirectionalLight(0xffffff, 3);
         light.position.set(1, 3, 2).normalize();
@@ -112,7 +112,7 @@
         const boardHeight = 0.2;
         const boardVisual = new THREE.Mesh(
             new THREE.CylinderGeometry(boardRadius, boardRadius, boardHeight, 64),
-            new THREE.MeshStandardMaterial({ color: 0x006934 })
+            new THREE.MeshStandardMaterial({ color: 0x808080 }) // Changed table color to grey
         );
         boardVisual.position.y = -boardHeight; // haut du plateau = -0.1
         scene.add(boardVisual);
