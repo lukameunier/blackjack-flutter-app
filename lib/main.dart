@@ -49,6 +49,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late HomePagePresenter _presenter;
+  final GlobalKey<GameTable3dState> _gameTableKey = GlobalKey<GameTable3dState>();
 
   @override
   void initState() {
@@ -71,6 +72,10 @@ class _MyHomePageState extends State<MyHomePage> {
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
     }
+  }
+
+  void _resetScene() {
+    _gameTableKey.currentState?.resetScene();
   }
 
   @override
@@ -97,7 +102,12 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      body: const GameTable3d(),
+      body: GameTable3d(key: _gameTableKey),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _resetScene,
+        tooltip: 'Reset Scene',
+        child: const Icon(Icons.refresh),
+      ),
     );
   }
 }

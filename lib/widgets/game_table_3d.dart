@@ -3,14 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class GameTable3d extends StatefulWidget {
-  const GameTable3d({super.key});
+  const GameTable3d({Key? key}) : super(key: key);
 
   @override
-  State<GameTable3d> createState() => _GameTable3dState();
+  GameTable3dState createState() => GameTable3dState();
 }
 
-class _GameTable3dState extends State<GameTable3d> {
+class GameTable3dState extends State<GameTable3d> {
   InAppWebViewController? _webViewController;
+
+  void resetScene() {
+    // This will call the JavaScript function of the same name inside the WebView.
+    _webViewController?.evaluateJavascript(source: 'resetScene();');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +23,11 @@ class _GameTable3dState extends State<GameTable3d> {
       initialFile: 'assets/web/index.html',
       onWebViewCreated: (controller) {
         _webViewController = controller;
+      },
+      onConsoleMessage: (controller, consoleMessage) {
+        if (kDebugMode) {
+          print('WebView Console: [${consoleMessage.messageLevel}] ${consoleMessage.message}');
+        }
       },
       initialSettings: InAppWebViewSettings(
         mediaPlaybackRequiresUserGesture: false,
