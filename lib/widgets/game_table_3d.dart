@@ -13,26 +13,36 @@ class GameTable3dState extends State<GameTable3d> {
   InAppWebViewController? _webViewController;
 
   void resetScene() {
-    // This will call the JavaScript function of the same name inside the WebView.
     _webViewController?.evaluateJavascript(source: 'resetScene();');
   }
 
   @override
   Widget build(BuildContext context) {
-    return InAppWebView(
-      initialFile: 'assets/web/index.html',
-      onWebViewCreated: (controller) {
-        _webViewController = controller;
-      },
-      onConsoleMessage: (controller, consoleMessage) {
-        if (kDebugMode) {
-          print('WebView Console: [${consoleMessage.messageLevel}] ${consoleMessage.message}');
-        }
-      },
-      initialSettings: InAppWebViewSettings(
-        mediaPlaybackRequiresUserGesture: false,
-        useHybridComposition: true,
-      ),
+    return Stack(
+      children: [
+        Container(color: Colors.black),
+        InAppWebView(
+          initialFile: 'assets/web/index.html',
+          onWebViewCreated: (controller) {
+            _webViewController = controller;
+          },
+          onConsoleMessage: (controller, consoleMessage) {
+            if (kDebugMode) {
+              print('WebView Console: [${consoleMessage.messageLevel}] ${consoleMessage.message}');
+            }
+          },
+          // These options make the WebView background transparent
+          initialOptions: InAppWebViewGroupOptions(
+            crossPlatform: InAppWebViewOptions(
+              transparentBackground: true,
+            ),
+          ),
+          initialSettings: InAppWebViewSettings(
+            mediaPlaybackRequiresUserGesture: false,
+            useHybridComposition: true,
+          ),
+        ),
+      ],
     );
   }
 }

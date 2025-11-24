@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>3D Physics</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #113322; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: transparent; }
         canvas { display: block; }
     </style>
 </head>
@@ -22,20 +22,24 @@
     <script type="module">
         import * as THREE from 'three';
         import * as CANNON from 'cannon-es';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { DragControls } from 'three/addons/controls/DragControls.js';
 
         // --- Global variables ---
-        let scene, camera, renderer, physicsWorld, orbitControls;
+        let scene, camera, renderer, physicsWorld;
         const objectsToUpdate = [];
+        let isDraggingHead = false;
+        let initialCameraQuaternion;
 
         function init() {
             // =========== THREE.js (Visuals) ===========
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setClearColor(0x000000, 0);
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
+
+            scene.background = new THREE.Color(0x113322);
 
             const gridHelper = new THREE.GridHelper(10, 10);
             scene.add(gridHelper);
@@ -45,53 +49,48 @@
             scene.add(light);
             scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-            camera.position.set(2, 5, 8);
-            orbitControls = new OrbitControls(camera, renderer.domElement);
+            camera.position.set(0, 6, 6);
+            camera.lookAt(0, 0, 0);
+            initialCameraQuaternion = camera.quaternion.clone();
 
             // =========== CANNON.js (Physics) ===========
             physicsWorld = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-
             const groundBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
             groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
             physicsWorld.addBody(groundBody);
 
             // --- The Cards ---
             const visualMeshes = [];
-            const cardWidth = 0.8;
-            const cardHeight = 1.2;
-            const cardDepth = 0.04;
-            const cardGeometry = new THREE.BoxGeometry(cardWidth, cardHeight, cardDepth);
-            const cardShape = new CANNON.Box(new CANNON.Vec3(cardWidth / 2, cardHeight / 2, cardDepth / 2));
+            const cardGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.04);
+            const cardShape = new CANNON.Box(new CANNON.Vec3(0.4, 0.6, 0.02));
 
             for (let i = 0; i < 3; i++) {
                 const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
                 const mesh = new THREE.Mesh(cardGeometry, material);
                 const body = new CANNON.Body({ mass: 0.1, shape: cardShape });
-
                 objectsToUpdate.push({ mesh, body });
                 visualMeshes.push(mesh);
                 scene.add(mesh);
                 physicsWorld.addBody(body);
             }
             
-            resetScene(); // Set initial positions
+            resetScene();
 
             // =========== Interactive Controls ===========
+            setupHeadTurnControls();
+
             const dragControls = new DragControls(visualMeshes, camera, renderer.domElement);
-            dragControls.addEventListener('dragstart', event => {
-                orbitControls.enabled = false;
-                const object = objectsToUpdate.find(o => o.mesh === event.object);
-                if (object) object.body.type = CANNON.Body.KINEMATIC;
-            });
+            dragControls.addEventListener('dragstart', () => { isHeadTurnEnabled = false; });
             dragControls.addEventListener('drag', event => {
                 const object = objectsToUpdate.find(o => o.mesh === event.object);
                 if (object) {
+                    object.body.type = CANNON.Body.KINEMATIC;
                     object.body.position.copy(event.object.position);
                     object.body.velocity.set(0, 0, 0);
                 }
             });
             dragControls.addEventListener('dragend', event => {
-                orbitControls.enabled = true;
+                isHeadTurnEnabled = true;
                 const object = objectsToUpdate.find(o => o.mesh === event.object);
                 if (object) object.body.type = CANNON.Body.DYNAMIC;
             });
@@ -103,17 +102,54 @@
             });
         }
 
-        // --- Reset Function (callable from Flutter) ---
-        window.resetScene = function() {
-            objectsToUpdate.forEach((object, i) => {
-                // Make sure body is dynamic
-                object.body.type = CANNON.Body.DYNAMIC;
+        let isHeadTurnEnabled = true;
+        function setupHeadTurnControls() {
+            let previousPointer = { x: 0, y: 0 };
+            
+            renderer.domElement.addEventListener('pointerdown', (event) => {
+                if (event.target === renderer.domElement) {
+                    isDraggingHead = true;
+                    previousPointer = { x: event.clientX, y: event.clientY };
+                }
+            });
 
-                // Reset position
+            renderer.domElement.addEventListener('pointermove', (event) => {
+                if (!isDraggingHead || !isHeadTurnEnabled) return;
+
+                const deltaX = event.clientX - previousPointer.x;
+                const deltaY = event.clientY - previousPointer.y;
+                previousPointer = { x: event.clientX, y: event.clientY };
+
+                const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+                euler.setFromQuaternion(camera.quaternion);
+
+                // Inverted and increased sensitivity
+                euler.y += deltaX * 0.008;
+                euler.x += deltaY * 0.008;
+
+                const maxRotationX = 0.4; // Increased range
+                const maxRotationY = Math.PI / 4; // Increased range
+                const initialEuler = new THREE.Euler().setFromQuaternion(initialCameraQuaternion, 'YXZ');
+                euler.x = THREE.MathUtils.clamp(euler.x, initialEuler.x - maxRotationX, initialEuler.x + maxRotationX);
+                euler.y = THREE.MathUtils.clamp(euler.y, initialEuler.y - maxRotationY, initialEuler.y + maxRotationY);
+                
+                camera.quaternion.setFromEuler(euler);
+            });
+
+            window.addEventListener('pointerup', () => { isDraggingHead = false; });
+        }
+
+        // --- Reset Function ---
+        window.resetScene = function() {
+            camera.position.set(0, 6, 6);
+            if (initialCameraQuaternion) {
+                camera.quaternion.copy(initialCameraQuaternion);
+            }
+            
+            objectsToUpdate.forEach((object, i) => {
+                object.body.type = CANNON.Body.DYNAMIC;
                 object.body.position.set(-1.5 + i * 1.5, 2 + i, 0);
                 object.mesh.position.copy(object.body.position);
-
-                // Reset rotation and velocity
                 object.body.quaternion.set(0, 0, 0, 1);
                 object.mesh.quaternion.copy(object.body.quaternion);
                 object.body.velocity.set(0, 0, 0);
@@ -127,6 +163,10 @@
             const deltaTime = clock.getDelta();
             physicsWorld.step(1 / 60, deltaTime, 3);
 
+            if (!isDraggingHead && initialCameraQuaternion) {
+                camera.quaternion.slerp(initialCameraQuaternion, 0.1);
+            }
+
             for (const object of objectsToUpdate) {
                 if (object.body.type !== CANNON.Body.KINEMATIC) {
                     object.mesh.position.copy(object.body.position);
@@ -134,7 +174,6 @@
                 }
             }
 
-            orbitControls.update();
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
