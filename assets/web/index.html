@@ -10,176 +10,291 @@
     </style>
 </head>
 <body>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+        }
+    }
+</script>
+<script type="module">
+    import * as THREE from 'three';
+    import * as CANNON from 'cannon-es';
+    import { DragControls } from 'three/addons/controls/DragControls.js';
+
+    // --- Global variables ---
+    let scene, camera, renderer, physicsWorld;
+    const objectsToUpdate = [];
+    let isDraggingHead = false;
+    let initialCameraQuaternion;
+
+    const FIXED_TIME_STEP = 1 / 120;
+    const MAX_SUBSTEPS = 5;
+
+    // Sol / plateau
+    const FLOOR_Y = -0.1; // haut du plateau visuel
+    const CARD_HALF_EXTENTS = { x: 0.4, y: 0.6, z: 0.02 }; // géométrie du box
+
+    // === Fonction qui empêche la carte de passer sous le plateau
+    function enforceFloor(body) {
+        const q = body.quaternion;
+        const x = q.x, y = q.y, z = q.z, w = q.w;
+        const hx = CARD_HALF_EXTENTS.x;
+        const hy = CARD_HALF_EXTENTS.y;
+        const hz = CARD_HALF_EXTENTS.z;
+
+        // Ligne Y de la matrice de rotation correspondant au quaternion
+        const m10 = 2 * (x * y + w * z);
+        const m11 = 1 - 2 * (x * x + z * z);
+        const m12 = 2 * (y * z - x * w);
+
+        const depth = Math.abs(m10) * hx + Math.abs(m11) * hy + Math.abs(m12) * hz;
+        const minY = body.position.y - depth;
+
+        if (minY < FLOOR_Y) {
+            const correction = FLOOR_Y - minY;
+            body.position.y += correction;
+
+            // on bloque la vitesse verticale descendante pour éviter qu’elle "pousse" encore vers le bas
+            if (body.velocity.y < 0) {
+                body.velocity.y = 0;
             }
         }
-    </script>
-    <script type="module">
-        import * as THREE from 'three';
-        import * as CANNON from 'cannon-es';
-        import { DragControls } from 'three/addons/controls/DragControls.js';
+    }
 
-        // --- Global variables ---
-        let scene, camera, renderer, physicsWorld;
-        const objectsToUpdate = [];
-        let isDraggingHead = false;
-        let initialCameraQuaternion;
+    function init() {
+        // =========== THREE.js (Visuals) ===========
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setClearColor(0x000000, 0);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        function init() {
-            // =========== THREE.js (Visuals) ===========
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setClearColor(0x000000, 0);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+        scene.background = new THREE.Color(0x113322);
 
-            scene.background = new THREE.Color(0x113322);
+        const light = new THREE.DirectionalLight(0xffffff, 3);
+        light.position.set(1, 3, 2).normalize();
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-            const gridHelper = new THREE.GridHelper(10, 10);
-            scene.add(gridHelper);
+        camera.position.set(0, 6, 6);
+        camera.lookAt(0, 0, 0);
+        initialCameraQuaternion = camera.quaternion.clone();
 
-            const light = new THREE.DirectionalLight(0xffffff, 3);
-            light.position.set(1, 3, 2).normalize();
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0xffffff, 1));
+        // =========== CANNON.js (Physics) ===========
+        physicsWorld = new CANNON.World({
+            gravity: new CANNON.Vec3(0, -9.82, 0)
+        });
+        physicsWorld.broadphase = new CANNON.SAPBroadphase(physicsWorld);
+        physicsWorld.allowSleep = true;
 
-            camera.position.set(0, 6, 6);
-            camera.lookAt(0, 0, 0);
-            initialCameraQuaternion = camera.quaternion.clone();
+        physicsWorld.solver.iterations = 20;
+        physicsWorld.solver.tolerance = 0.001;
 
-            // =========== CANNON.js (Physics) ===========
-            physicsWorld = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-            const groundBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
-            groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-            physicsWorld.addBody(groundBody);
-
-            // --- The Cards ---
-            const visualMeshes = [];
-            const cardGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.04);
-            const cardShape = new CANNON.Box(new CANNON.Vec3(0.4, 0.6, 0.02));
-
-            for (let i = 0; i < 3; i++) {
-                const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
-                const mesh = new THREE.Mesh(cardGeometry, material);
-                const body = new CANNON.Body({ mass: 0.1, shape: cardShape });
-                objectsToUpdate.push({ mesh, body });
-                visualMeshes.push(mesh);
-                scene.add(mesh);
-                physicsWorld.addBody(body);
+        const defaultMaterial = new CANNON.Material('default');
+        const defaultContactMaterial = new CANNON.ContactMaterial(
+            defaultMaterial,
+            defaultMaterial,
+            {
+                friction: 0.4,
+                restitution: 0.0,
+                contactEquationStiffness: 1e6,
+                contactEquationRelaxation: 4
             }
-            
-            resetScene();
+        );
+        physicsWorld.defaultContactMaterial = defaultContactMaterial;
 
-            // =========== Interactive Controls ===========
-            setupHeadTurnControls();
+        // --- The Board (visuel) ---
+        const boardRadius = 5;
+        const boardHeight = 0.2;
+        const boardVisual = new THREE.Mesh(
+            new THREE.CylinderGeometry(boardRadius, boardRadius, boardHeight, 64),
+            new THREE.MeshStandardMaterial({ color: 0x006934 })
+        );
+        boardVisual.position.y = -boardHeight; // haut du plateau = -0.1
+        scene.add(boardVisual);
 
-            const dragControls = new DragControls(visualMeshes, camera, renderer.domElement);
-            dragControls.addEventListener('dragstart', () => { isHeadTurnEnabled = false; });
-            dragControls.addEventListener('drag', event => {
-                const object = objectsToUpdate.find(o => o.mesh === event.object);
-                if (object) {
-                    object.body.type = CANNON.Body.KINEMATIC;
-                    object.body.position.copy(event.object.position);
-                    object.body.velocity.set(0, 0, 0);
-                }
-            });
-            dragControls.addEventListener('dragend', event => {
-                isHeadTurnEnabled = true;
-                const object = objectsToUpdate.find(o => o.mesh === event.object);
-                if (object) object.body.type = CANNON.Body.DYNAMIC;
-            });
+        // --- Sol physique : plane infini à la hauteur du plateau ---
+        const groundBody = new CANNON.Body({
+            mass: 0,
+            material: defaultMaterial
+        });
+        groundBody.addShape(new CANNON.Plane());
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        groundBody.position.set(0, FLOOR_Y, 0);
+        physicsWorld.addBody(groundBody);
 
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
+        // --- The Cards ---
+        const visualMeshes = [];
+        const cardGeometry = new THREE.BoxGeometry(
+            CARD_HALF_EXTENTS.x * 2,
+            CARD_HALF_EXTENTS.y * 2,
+            CARD_HALF_EXTENTS.z * 2
+        );
+        const cardShape = new CANNON.Box(
+            new CANNON.Vec3(CARD_HALF_EXTENTS.x, CARD_HALF_EXTENTS.y, CARD_HALF_EXTENTS.z)
+        );
+
+        for (let i = 0; i < 3; i++) {
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.8
             });
+            const mesh = new THREE.Mesh(cardGeometry, material);
+
+            const body = new CANNON.Body({
+                mass: 0.3,
+                shape: cardShape,
+                material: defaultMaterial
+            });
+            body.linearDamping = 0.2;
+            body.angularDamping = 0.2;
+
+            body.ccdMotionThreshold = 0.01;
+            body.ccdSweptSphereRadius = 0.3;
+
+            objectsToUpdate.push({ mesh, body });
+            visualMeshes.push(mesh);
+            scene.add(mesh);
+            physicsWorld.addBody(body);
         }
 
-        let isHeadTurnEnabled = true;
-        function setupHeadTurnControls() {
-            let previousPointer = { x: 0, y: 0 };
-            
-            renderer.domElement.addEventListener('pointerdown', (event) => {
-                if (event.target === renderer.domElement) {
-                    isDraggingHead = true;
-                    previousPointer = { x: event.clientX, y: event.clientY };
-                }
-            });
+        resetScene();
 
-            renderer.domElement.addEventListener('pointermove', (event) => {
-                if (!isDraggingHead || !isHeadTurnEnabled) return;
+        // =========== Interactive Controls ===========
+        setupHeadTurnControls();
 
-                const deltaX = event.clientX - previousPointer.x;
-                const deltaY = event.clientY - previousPointer.y;
-                previousPointer = { x: event.clientX, y: event.clientY };
+        const dragControls = new DragControls(visualMeshes, camera, renderer.domElement);
 
-                const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-                euler.setFromQuaternion(camera.quaternion);
+        dragControls.addEventListener('dragstart', () => {
+            isHeadTurnEnabled = false;
+        });
 
-                // Inverted and increased sensitivity
-                euler.y += deltaX * 0.008;
-                euler.x += deltaY * 0.008;
-
-                const maxRotationX = 0.4; // Increased range
-                const maxRotationY = Math.PI / 4; // Increased range
-                const initialEuler = new THREE.Euler().setFromQuaternion(initialCameraQuaternion, 'YXZ');
-                euler.x = THREE.MathUtils.clamp(euler.x, initialEuler.x - maxRotationX, initialEuler.x + maxRotationX);
-                euler.y = THREE.MathUtils.clamp(euler.y, initialEuler.y - maxRotationY, initialEuler.y + maxRotationY);
-                
-                camera.quaternion.setFromEuler(euler);
-            });
-
-            window.addEventListener('pointerup', () => { isDraggingHead = false; });
-        }
-
-        // --- Reset Function ---
-        window.resetScene = function() {
-            camera.position.set(0, 6, 6);
-            if (initialCameraQuaternion) {
-                camera.quaternion.copy(initialCameraQuaternion);
-            }
-            
-            objectsToUpdate.forEach((object, i) => {
-                object.body.type = CANNON.Body.DYNAMIC;
-                object.body.position.set(-1.5 + i * 1.5, 2 + i, 0);
-                object.mesh.position.copy(object.body.position);
-                object.body.quaternion.set(0, 0, 0, 1);
-                object.mesh.quaternion.copy(object.body.quaternion);
+        dragControls.addEventListener('drag', event => {
+            const object = objectsToUpdate.find(o => o.mesh === event.object);
+            if (object) {
+                object.body.wakeUp();
+                object.body.position.copy(event.object.position);
                 object.body.velocity.set(0, 0, 0);
                 object.body.angularVelocity.set(0, 0, 0);
-            });
+
+                // Empêche de tirer la carte sous le plateau pendant le drag
+                enforceFloor(object.body);
+            }
+        });
+
+        dragControls.addEventListener('dragend', event => {
+            isHeadTurnEnabled = true;
+            const object = objectsToUpdate.find(o => o.mesh === event.object);
+            if (object) {
+                object.body.wakeUp();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    let isHeadTurnEnabled = true;
+    function setupHeadTurnControls() {
+        let previousPointer = { x: 0, y: 0 };
+
+        renderer.domElement.addEventListener('pointerdown', (event) => {
+            if (event.target === renderer.domElement) {
+                isDraggingHead = true;
+                previousPointer = { x: event.clientX, y: event.clientY };
+            }
+        });
+
+        renderer.domElement.addEventListener('pointermove', (event) => {
+            if (!isDraggingHead || !isHeadTurnEnabled) return;
+
+            const deltaX = event.clientX - previousPointer.x;
+            const deltaY = event.clientY - previousPointer.y;
+            previousPointer = { x: event.clientX, y: event.clientY };
+
+            const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+            euler.setFromQuaternion(camera.quaternion);
+
+            euler.y += deltaX * 0.008;
+            euler.x += deltaY * 0.008;
+
+            const maxRotationX = 0.4;
+            const maxRotationY = Math.PI / 4;
+            const initialEuler = new THREE.Euler().setFromQuaternion(initialCameraQuaternion, 'YXZ');
+            euler.x = THREE.MathUtils.clamp(euler.x, initialEuler.x - maxRotationX, initialEuler.x + maxRotationX);
+            euler.y = THREE.MathUtils.clamp(euler.y, initialEuler.y - maxRotationY, initialEuler.y + maxRotationY);
+
+            camera.quaternion.setFromEuler(euler);
+        });
+
+        window.addEventListener('pointerup', () => { isDraggingHead = false; });
+    }
+
+    // --- Reset Function ---
+    window.resetScene = function () {
+        camera.position.set(0, 6, 6);
+        if (initialCameraQuaternion) {
+            camera.quaternion.copy(initialCameraQuaternion);
         }
 
-        // =========== Animation Loop ===========
-        const clock = new THREE.Clock();
-        function animate() {
-            const deltaTime = clock.getDelta();
-            physicsWorld.step(1 / 60, deltaTime, 3);
+        objectsToUpdate.forEach((object, i) => {
+            object.body.type = CANNON.Body.DYNAMIC;
 
-            if (!isDraggingHead && initialCameraQuaternion) {
-                camera.quaternion.slerp(initialCameraQuaternion, 0.1);
-            }
+            // Position de départ : juste au-dessus du plateau, alignées en ligne
+            object.body.position.set(
+                -1.5 + i * 1.5,
+                FLOOR_Y + 0.2,   // légèrement au-dessus, elles retombent un peu
+                0
+            );
+            object.mesh.position.copy(object.body.position);
 
-            for (const object of objectsToUpdate) {
-                if (object.body.type !== CANNON.Body.KINEMATIC) {
-                    object.mesh.position.copy(object.body.position);
-                    object.mesh.quaternion.copy(object.body.quaternion);
-                }
-            }
+            // Les cartes couchées : rotation de -90° autour de X
+            const quat = new CANNON.Quaternion();
+            quat.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
+            object.body.quaternion.copy(quat);
+            object.mesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate);
+            object.body.velocity.set(0, 0, 0);
+            object.body.angularVelocity.set(0, 0, 0);
+            object.body.wakeUp();
+
+            // On applique le clamp pour s’assurer qu’elles sont bien posées sur le plateau
+            enforceFloor(object.body);
+        });
+    };
+
+
+    // =========== Animation Loop ===========
+    const clock = new THREE.Clock();
+    function animate() {
+        const deltaTime = clock.getDelta();
+
+        physicsWorld.step(FIXED_TIME_STEP, deltaTime, MAX_SUBSTEPS);
+
+        // On corrige les cartes après la physique
+        for (const object of objectsToUpdate) {
+            enforceFloor(object.body);
+            object.mesh.position.copy(object.body.position);
+            object.mesh.quaternion.copy(object.body.quaternion);
         }
 
-        init();
-        animate();
-    </script>
+        if (!isDraggingHead && initialCameraQuaternion) {
+            camera.quaternion.slerp(initialCameraQuaternion, 0.1);
+        }
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+    }
+
+    init();
+    animate();
+</script>
 </body>
 </html>
