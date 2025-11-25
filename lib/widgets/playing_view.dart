@@ -147,31 +147,46 @@ class _PlayingViewState extends State<PlayingView> {
           animateCards: shouldAnimateCards,
         ),
         const SizedBox(height: 24),
-        ...List.generate(board.player.hands.length, (index) {
-          final handModel = board.player.hands[index];
-          final displayedHand = _displayedPlayerHands[index];
-          final isActive = index == board.player.activeHandIndex && board.state == GameState.playing;
-          return HandView(
-            title: 'Player Hand ${index + 1}',
-            cards: displayedHand.cards,
-            score: displayedHand.score,
-            bet: handModel.bet,
-            isActive: isActive,
-            result: board.state == GameState.roundOver
-                ? board.getResultForHand(handModel)
-                : null,
-            animateCards: shouldAnimateCards,
-          );
-        }),
-        const Spacer(),
-        if (board.state == GameState.offeringInsurance)
-          Text(
-            'Dealer has an Ace. Do you want insurance?',
-            style: Theme.of(context).textTheme.headlineSmall,
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: List.generate(board.player.hands.length, (index) {
+                final handModel = board.player.hands[index];
+                final displayedHand = _displayedPlayerHands[index];
+                final isActive =
+                    index == board.player.activeHandIndex && board.state == GameState.playing;
+                return HandView(
+                  title: 'Player Hand ${index + 1}',
+                  cards: displayedHand.cards,
+                  score: displayedHand.score,
+                  bet: handModel.bet,
+                  isActive: isActive,
+                  result: board.state == GameState.roundOver
+                      ? board.getResultForHand(handModel)
+                      : null,
+                  animateCards: shouldAnimateCards,
+                );
+              }),
+            ),
           ),
-        if (board.state == GameState.roundOver) _buildResultsView(context),
-        const SizedBox(height: 24),
+        ),
+        const SizedBox(height: 16),
+        if (board.state == GameState.offeringInsurance)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(
+              'Dealer has an Ace. Do you want insurance?',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        if (board.state == GameState.roundOver)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: _buildResultsView(context),
+          ),
         ActionButtons(presenter: widget.presenter),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -188,6 +203,7 @@ class _PlayingViewState extends State<PlayingView> {
         return Text(
           '${result.message}$payoutInfo',
           style: Theme.of(context).textTheme.headlineSmall,
+          textAlign: TextAlign.center,
         );
       }).toList(),
     );

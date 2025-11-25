@@ -16,15 +16,16 @@ class ActionButtons extends StatelessWidget {
       case GameState.betting:
         return const SizedBox.shrink();
       case GameState.offeringInsurance:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        return Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12.0,
+          runSpacing: 12.0,
           children: [
             ElevatedButton(
               onPressed:
                   board.canTakeInsurance ? presenter.takeInsurance : null,
               child: const Text('Take Insurance'),
             ),
-            const SizedBox(width: 16),
             ElevatedButton(
               onPressed: presenter.declineInsurance,
               child: const Text('No, Thanks'),
