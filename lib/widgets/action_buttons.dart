@@ -10,13 +10,24 @@ class ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final board = presenter.board;
-
-    if (board.state == GameState.betting) {
-      return _buildBettingView(context, board);
-    } else {
-      return _buildGameActions(context, board);
-    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200), // Reduced from 300ms
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.0, 0.3),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: presenter.board.state == GameState.betting
+          ? _buildBettingView(context, presenter.board)
+          : _buildGameActions(context, presenter.board),
+    );
   }
 
   Widget _buildBettingView(BuildContext context, Board board) {
@@ -28,6 +39,7 @@ class ActionButtons extends StatelessWidget {
     );
 
     return Column(
+      key: const ValueKey('betting'),
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -91,8 +103,7 @@ class ActionButtons extends StatelessWidget {
         break;
       case GameState.playing:
         buttons = [
-          ElevatedButton(
-              style: buttonStyle, onPressed: presenter.hit, child: const Text('Hit')),
+          ElevatedButton(style: buttonStyle, onPressed: presenter.hit, child: const Text('Hit')),
           ElevatedButton(
             style: buttonStyle,
             onPressed: board.canDoubleDown ? presenter.doubleDown : null,
@@ -108,10 +119,7 @@ class ActionButtons extends StatelessWidget {
             onPressed: board.canSurrender ? presenter.surrender : null,
             child: const Text('Surrender'),
           ),
-          ElevatedButton(
-              style: buttonStyle,
-              onPressed: presenter.stand,
-              child: const Text('Stand')),
+          ElevatedButton(style: buttonStyle, onPressed: presenter.stand, child: const Text('Stand')),
         ];
         break;
       case GameState.roundOver:
@@ -130,6 +138,7 @@ class ActionButtons extends StatelessWidget {
     }
 
     return Wrap(
+      key: const ValueKey('actions'),
       alignment: WrapAlignment.center,
       spacing: 12.0,
       runSpacing: 12.0,

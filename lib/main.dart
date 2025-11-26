@@ -1,44 +1,72 @@
 import 'package:blackjack/presenters/home_page_presenter.dart';
+import 'package:blackjack/services/auth_service.dart';
+import 'package:blackjack/supabase_credentials.dart';
 import 'package:blackjack/widgets/animated_wallet.dart';
 import 'package:blackjack/widgets/login_screen.dart';
 import 'package:blackjack/widgets/playing_view.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final prefs = await SharedPreferences.getInstance();
-  final bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-  final String? userName = prefs.getString('userName');
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
 
-  runApp(MyApp(isLoggedIn: isLoggedIn, userName: userName));
+  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({
-    super.key,
-    required this.isLoggedIn,
-    this.userName,
-  });
+final supabase = Supabase.instance.client;
 
-  final bool isLoggedIn;
-  final String? userName;
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Blackjack',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (context) => AuthService(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Blackjack',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: const AuthStateListener(),
       ),
-      home: isLoggedIn && userName != null
-          ? MyHomePage(userName: userName!)
-          : const LoginScreen(),
-      routes: {
-        '/login': (context) => const LoginScreen(),
+    );
+  }
+}
+
+class AuthStateListener extends StatelessWidget {
+  const AuthStateListener({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final session = snapshot.data!.session;
+          if (session != null) {
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: Provider.of<AuthService>(context, listen: false)
+                  .getCurrentProfile(),
+              builder: (context, profileSnapshot) {
+                if (profileSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()));
+                }
+                final userName = profileSnapshot.data?['username'] ?? 'Player';
+                return MyHomePage(userName: userName);
+              },
+            );
+          }
+        }
+        return const LoginScreen();
       },
     );
   }
@@ -61,6 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _presenter = HomePagePresenter();
     _presenter.init();
+    // Ici, on pourrait charger le portefeuille du joueur depuis Supabase
   }
 
   @override
@@ -69,18 +98,10 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
-    await prefs.remove('userName');
-
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -92,6 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: AnimatedBuilder(
                 animation: _presenter,
                 builder: (context, child) {
+                  // TODO: Connecter au portefeuille Supabase
                   return AnimatedWallet(amount: _presenter.board.player.wallet);
                 },
               ),
@@ -99,7 +121,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: _logout,
+            onPressed: () => authService.signOut(),
             tooltip: 'Logout',
           ),
         ],
