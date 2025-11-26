@@ -1,7 +1,5 @@
-import 'package:blackjack/models/board.dart';
 import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:blackjack/widgets/animated_wallet.dart';
-import 'package:blackjack/widgets/betting_view.dart';
 import 'package:blackjack/widgets/login_screen.dart';
 import 'package:blackjack/widgets/playing_view.dart';
 import 'package:flutter/material.dart';
@@ -40,7 +38,6 @@ class MyApp extends StatelessWidget {
           ? MyHomePage(userName: userName!)
           : const LoginScreen(),
       routes: {
-        // On garde la route vers /login au cas où on en aurait besoin plus tard
         '/login': (context) => const LoginScreen(),
       },
     );
@@ -112,18 +109,8 @@ class _MyHomePageState extends State<MyHomePage> {
         child: AnimatedBuilder(
           animation: _presenter,
           builder: (context, child) {
-            final board = _presenter.board;
-            switch (board.state) {
-              case GameState.betting:
-                return BettingView(
-                  playerWallet: board.player.wallet,
-                  onBetPlaced: (amount) => _presenter.placeBetAndDeal(amount),
-                );
-              case GameState.playing:
-              case GameState.offeringInsurance:
-              case GameState.roundOver:
-                return PlayingView(presenter: _presenter);
-            }
+            // On utilise maintenant toujours PlayingView, qui s'adapte à l'état du jeu.
+            return PlayingView(presenter: _presenter);
           },
         ),
       ),

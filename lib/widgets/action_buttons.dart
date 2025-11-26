@@ -14,7 +14,29 @@ class ActionButtons extends StatelessWidget {
 
     switch (board.state) {
       case GameState.betting:
-        return const SizedBox.shrink();
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Place your bet',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              alignment: WrapAlignment.center,
+              children: [10.0, 25.0, 50.0, 100.0, 200.0, 500.0].map((amount) {
+                return ElevatedButton(
+                  onPressed: board.player.wallet >= amount
+                      ? () => presenter.placeBetAndDeal(amount)
+                      : null,
+                  child: Text('\$$amount'),
+                );
+              }).toList(),
+            ),
+          ],
+        );
       case GameState.offeringInsurance:
         return Wrap(
           alignment: WrapAlignment.center,

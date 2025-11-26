@@ -44,7 +44,7 @@ class _PlayingViewState extends State<PlayingView> {
   void _syncAndCheckForNewCards() {
     final board = widget.presenter.board;
 
-    if (board.state == GameState.roundOver) {
+    if (board.state == GameState.betting || board.state == GameState.roundOver) {
       if (!_isStateSynced()) {
         _syncStateWithoutAnimation();
       }
@@ -99,6 +99,12 @@ class _PlayingViewState extends State<PlayingView> {
 
   bool _isStateSynced() {
     final board = widget.presenter.board;
+
+    // Si la partie n'a pas commencé, on considère l'état comme synchronisé
+    if (board.dealer.activeHand.cards.isEmpty && _displayedDealerHand.cards.isEmpty) {
+      return true;
+    }
+
     if (board.dealer.activeHand.cards.length != _displayedDealerHand.cards.length) return false;
     if (board.player.hands.length != _displayedPlayerHands.length) return false;
     for (int i = 0; i < board.player.hands.length; i++) {
@@ -136,41 +142,54 @@ class _PlayingViewState extends State<PlayingView> {
   @override
   Widget build(BuildContext context) {
     final board = widget.presenter.board;
-    final bool shouldAnimateCards = board.state != GameState.roundOver;
+
+    // Si on est en phase de mise, on n'affiche que les boutons.
+    // Sinon, on affiche toute la table de jeu.
+    final bool showHands = board.state != GameState.betting;
 
     return Column(
       children: [
-        HandView(
-          title: 'Dealer',
-          cards: _displayedDealerHand.cards,
-          score: _displayedDealerHand.score,
-          animateCards: shouldAnimateCards,
-        ),
-        const SizedBox(height: 24),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: List.generate(board.player.hands.length, (index) {
-                final handModel = board.player.hands[index];
-                final displayedHand = _displayedPlayerHands[index];
-                final isActive =
-                    index == board.player.activeHandIndex && board.state == GameState.playing;
-                return HandView(
-                  title: 'Player Hand ${index + 1}',
-                  cards: displayedHand.cards,
-                  score: displayedHand.score,
-                  bet: handModel.bet,
-                  isActive: isActive,
-                  result: board.state == GameState.roundOver
-                      ? board.getResultForHand(handModel)
-                      : null,
-                  animateCards: shouldAnimateCards,
-                );
-              }),
+        // Les mains ne sont visibles que si la partie a commencé
+        if (showHands)
+          HandView(
+            title: 'Dealer',
+            cards: _displayedDealerHand.cards,
+            score: _displayedDealerHand.score,
+            animateCards: board.state != GameState.roundOver,
+          ),
+        if (showHands) const SizedBox(height: 24),
+
+        // On utilise un Expanded pour que la vue des mains du joueur puisse scroller
+        // si elle est trop grande (ex: après plusieurs splits)
+        if (showHands)
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: List.generate(board.player.hands.length, (index) {
+                  final handModel = board.player.hands[index];
+                  final displayedHand = _displayedPlayerHands[index];
+                  final isActive =
+                      index == board.player.activeHandIndex && board.state == GameState.playing;
+                  return HandView(
+                    title: 'Player Hand ${index + 1}',
+                    cards: displayedHand.cards,
+                    score: displayedHand.score,
+                    bet: handModel.bet,
+                    isActive: isActive,
+                    result: board.state == GameState.roundOver
+                        ? board.getResultForHand(handModel)
+                        : null,
+                    animateCards: board.state != GameState.roundOver,
+                  );
+                }),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
+
+        // Le Spacer centre les boutons de mise quand les mains ne sont pas visibles
+        if (!showHands) const Spacer(),
+
+        // Messages et résultats
         if (board.state == GameState.offeringInsurance)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -185,7 +204,12 @@ class _PlayingViewState extends State<PlayingView> {
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: _buildResultsView(context),
           ),
+
+        // Les boutons d'action sont toujours présents, mais leur contenu change
         ActionButtons(presenter: widget.presenter),
+
+        if (!showHands) const Spacer(),
+
         const SizedBox(height: 16),
       ],
     );
