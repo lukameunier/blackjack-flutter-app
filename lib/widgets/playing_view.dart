@@ -100,7 +100,6 @@ class _PlayingViewState extends State<PlayingView> {
   bool _isStateSynced() {
     final board = widget.presenter.board;
 
-    // Si la partie n'a pas commencé, on considère l'état comme synchronisé
     if (board.dealer.activeHand.cards.isEmpty && _displayedDealerHand.cards.isEmpty) {
       return true;
     }
@@ -141,82 +140,141 @@ class _PlayingViewState extends State<PlayingView> {
 
   @override
   Widget build(BuildContext context) {
-    final board = widget.presenter.board;
-
-    // Si on est en phase de mise, on n'affiche que les boutons.
-    // Sinon, on affiche toute la table de jeu.
-    final bool showHands = board.state != GameState.betting;
-
     return Column(
       children: [
-        // Les mains ne sont visibles que si la partie a commencé
-        if (showHands)
-          HandView(
-            title: 'Dealer',
-            cards: _displayedDealerHand.cards,
-            score: _displayedDealerHand.score,
-            animateCards: board.state != GameState.roundOver,
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                colors: [Color(0xFF3A8C3A), Color(0xFF2C6B2C)],
+                radius: 0.8,
+              ),
+            ),
+            child: _buildGameBoard(),
           ),
-        if (showHands) const SizedBox(height: 24),
-
-        // On utilise un Expanded pour que la vue des mains du joueur puisse scroller
-        // si elle est trop grande (ex: après plusieurs splits)
-        if (showHands)
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: List.generate(board.player.hands.length, (index) {
-                  final handModel = board.player.hands[index];
-                  final displayedHand = _displayedPlayerHands[index];
-                  final isActive =
-                      index == board.player.activeHandIndex && board.state == GameState.playing;
-                  return HandView(
-                    title: 'Player Hand ${index + 1}',
-                    cards: displayedHand.cards,
-                    score: displayedHand.score,
-                    bet: handModel.bet,
-                    isActive: isActive,
-                    result: board.state == GameState.roundOver
-                        ? board.getResultForHand(handModel)
-                        : null,
-                    animateCards: board.state != GameState.roundOver,
-                  );
-                }),
+        ),
+        Container(
+          height: 180, // Fixed height for the footer
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.black.withOpacity(0.4),
+                Colors.black.withOpacity(0.7),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withOpacity(0.1),
+                width: 1.0,
               ),
             ),
           ),
-
-        // Le Spacer centre les boutons de mise quand les mains ne sont pas visibles
-        if (!showHands) const Spacer(),
-
-        // Messages et résultats
-        if (board.state == GameState.offeringInsurance)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(
-              'Dealer has an Ace. Do you want insurance?',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
+          child: SafeArea(
+            top: false,
+            child: Center(
+              child: ActionButtons(presenter: widget.presenter),
             ),
           ),
-        if (board.state == GameState.roundOver)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: _buildResultsView(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGameBoard() {
+    final board = widget.presenter.board;
+    final showHands = board.state != GameState.betting;
+
+    if (!showHands) {
+      return const Center(
+          // The betting UI is now handled in ActionButtons, so this space is for the table background.
+          );
+    }
+
+    return Stack(
+      children: [
+        // Dealer's hand at the top
+        Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 24.0),
+            child: HandView(
+              title: 'Dealer',
+              cards: _displayedDealerHand.cards,
+              score: _displayedDealerHand.score,
+              animateCards: board.state != GameState.roundOver,
+            ),
           ),
+        ),
 
-        // Les boutons d'action sont toujours présents, mais leur contenu change
-        ActionButtons(presenter: widget.presenter),
+        // Player's hands at the bottom
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 24.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(_displayedPlayerHands.length, (index) {
+                final handModel = board.player.hands[index];
+                final displayedHand = _displayedPlayerHands[index];
+                final isActive =
+                    index == board.player.activeHandIndex && board.state == GameState.playing;
+                return HandView(
+                  title: 'Player Hand ${index + 1}',
+                  cards: displayedHand.cards,
+                  score: displayedHand.score,
+                  bet: handModel.bet,
+                  isActive: isActive,
+                  result: board.state == GameState.roundOver
+                      ? board.getResultForHand(handModel)
+                      : null,
+                  animateCards: board.state != GameState.roundOver,
+                );
+              }),
+            ),
+          ),
+        ),
 
-        if (!showHands) const Spacer(),
-
-        const SizedBox(height: 16),
+        // Messages and results in the center
+        Center(
+          child: (board.state == GameState.offeringInsurance || board.state == GameState.roundOver)
+              ? Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (board.state == GameState.offeringInsurance)
+                        Text(
+                          'Dealer has an Ace. Do you want insurance?',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      if (board.state == GameState.roundOver) _buildResultsView(context),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }
 
   Widget _buildResultsView(BuildContext context) {
+    final textStyle =
+        Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white);
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: widget.presenter.board.player.hands.map((hand) {
         final result = widget.presenter.board.getResultForHand(hand);
         final payoutInfo = result.payout > 0
@@ -226,7 +284,7 @@ class _PlayingViewState extends State<PlayingView> {
             : ' (-${hand.bet.toStringAsFixed(2)})';
         return Text(
           '${result.message}$payoutInfo',
-          style: Theme.of(context).textTheme.headlineSmall,
+          style: textStyle,
           textAlign: TextAlign.center,
         );
       }).toList(),

@@ -4,18 +4,14 @@ import 'package:blackjack/models/card.dart' as playing_card;
 import 'package:blackjack/models/suit.dart';
 import 'package:flutter/material.dart';
 
-const double _kCardWidth = 80.0;
-const double _kCardHeight = 120.0;
 const double _kCardBorderRadius = 8.0;
 const double _kCardBorderWidth = 1.5;
 const EdgeInsets _kCardMargin = EdgeInsets.only(right: 8.0);
-const double _kCornerPadding = 6.0;
+const double _kCornerPadding = 4.0; // Reduced padding
 
-const double _kCenterIconSize = 36.0;
-const double _kCenterIconHorizontalOffset = -5.5;
-
-const double _kCornerRankFontSize = 14.0;
-const double _kCornerIconSize = 12.0;
+const double _kCenterIconSizeRatio = 0.4; // Relative to card height
+const double _kCornerRankFontSizeRatio = 0.15; // Relative to card height
+const double _kCornerIconSizeRatio = 0.12; // Relative to card height
 
 const double _kShadowBlurRadius = 4.0;
 const Offset _kShadowOffset = Offset(1, 2);
@@ -85,58 +81,64 @@ class _CardViewState extends State<CardView>
       scale: _scaleAnimation,
       child: SlideTransition(
         position: _slideAnimation,
-        child: Container(
-          width: _kCardWidth,
-          height: _kCardHeight,
-          margin: _kCardMargin,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(_kCardBorderRadius),
-            border: Border.all(color: Colors.black87, width: _kCardBorderWidth),
-            boxShadow: const [
-              BoxShadow(
-                blurRadius: _kShadowBlurRadius,
-                offset: _kShadowOffset,
-                color: Colors.black26,
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: _kCornerPadding,
-                left: _kCornerPadding,
-                child: _CornerLabel(
-                  rank: widget.card.rank.shortName,
-                  icon: widget.card.suit.icon,
-                  color: color,
+        child: LayoutBuilder(builder: (context, constraints) {
+          final cardHeight = constraints.maxHeight;
+          final centerIconSize = cardHeight * _kCenterIconSizeRatio;
+          final cornerRankFontSize = cardHeight * _kCornerRankFontSizeRatio;
+          final cornerIconSize = cardHeight * _kCornerIconSizeRatio;
+
+          return Container(
+            margin: _kCardMargin,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(_kCardBorderRadius),
+              border: Border.all(color: Colors.black87, width: _kCardBorderWidth),
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: _kShadowBlurRadius,
+                  offset: _kShadowOffset,
+                  color: Colors.black26,
                 ),
-              ),
-              Positioned(
-                bottom: _kCornerPadding,
-                right: _kCornerPadding,
-                child: Transform.rotate(
-                  angle: math.pi,
+              ],
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: _kCornerPadding,
+                  left: _kCornerPadding,
                   child: _CornerLabel(
                     rank: widget.card.rank.shortName,
                     icon: widget.card.suit.icon,
                     color: color,
+                    rankFontSize: cornerRankFontSize,
+                    iconSize: cornerIconSize,
                   ),
                 ),
-              ),
-              Transform.translate(
-                offset: const Offset(_kCenterIconHorizontalOffset, 0),
-                child: Center(
+                Positioned(
+                  bottom: _kCornerPadding,
+                  right: _kCornerPadding,
+                  child: Transform.rotate(
+                    angle: math.pi,
+                    child: _CornerLabel(
+                      rank: widget.card.rank.shortName,
+                      icon: widget.card.suit.icon,
+                      color: color,
+                      rankFontSize: cornerRankFontSize,
+                      iconSize: cornerIconSize,
+                    ),
+                  ),
+                ),
+                Center(
                   child: Icon(
                     widget.card.suit.icon,
-                    size: _kCenterIconSize,
+                    size: centerIconSize,
                     color: color,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
@@ -147,11 +149,15 @@ class _CornerLabel extends StatelessWidget {
     required this.rank,
     required this.icon,
     required this.color,
+    required this.rankFontSize,
+    required this.iconSize,
   });
 
   final String rank;
   final IconData icon;
   final Color color;
+  final double rankFontSize;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -160,12 +166,12 @@ class _CornerLabel extends StatelessWidget {
         Text(
           rank,
           style: TextStyle(
-            fontSize: _kCornerRankFontSize,
+            fontSize: rankFontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
-        Icon(icon, size: _kCornerIconSize, color: color),
+        Icon(icon, size: iconSize, color: color),
       ],
     );
   }

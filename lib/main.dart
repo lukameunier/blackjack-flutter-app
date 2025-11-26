@@ -104,15 +104,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: AnimatedBuilder(
-          animation: _presenter,
-          builder: (context, child) {
-            // On utilise maintenant toujours PlayingView, qui s'adapte à l'état du jeu.
-            return PlayingView(presenter: _presenter);
-          },
-        ),
+      body: AnimatedBuilder(
+        animation: _presenter,
+        builder: (context, child) {
+          return PlayingView(presenter: _presenter);
+        },
       ),
     );
   }
