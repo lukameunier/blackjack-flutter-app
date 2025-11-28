@@ -2,8 +2,9 @@ import 'card.dart';
 import 'hand.dart';
 
 class Player {
-  Player({this.wallet = 1000.0});
+  Player({this.name = 'Player', this.wallet = 1000.0});
 
+  String name;
   double wallet;
   double insuranceBet = 0;
   final List<Hand> hands = [Hand()];

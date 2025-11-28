@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 /// Ce service centralise TOUS les appels à la base de données Supabase (sauf l'auth).
 /// C'est notre "Repository".
 class DatabaseService {
-  /// Crée un profil utilisateur dans la table `profiles`.
   Future<void> createProfile(String userId, String username) async {
     final updates = {
       'id': userId,
@@ -35,7 +34,7 @@ class DatabaseService {
     }
   }
 
-  // --- On ajoutera ici les autres fonctions --- 
+  // --- On ajoutera ici les autres fonctions ---
   // Future<void> updateUserWallet(String userId, double newAmount) async { ... }
   // ... etc.
 }

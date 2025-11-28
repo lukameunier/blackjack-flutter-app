@@ -1,3 +1,0 @@
-const String supabaseUrl = 'https://rryurfrkmeerfltpavgf.supabase.co';
-const String supabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyeXVyZnJrbWVlcmZsdHBhdmdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxODk4ODEsImV4cCI6MjA3OTc2NTg4MX0.GX7jdWIUGSvOvG-2O_4rDrQAY1bIOk63qHziw1Uo7pc';
