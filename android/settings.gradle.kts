@@ -24,3 +24,13 @@ plugins {
 }
 
 include(":app")
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        flatDir {
+            dirs("/home/vitez/.pub-cache/hosted/pub.dev/flutter_gl-0.0.21/android/libs/aars")
+        }
+    }
+}

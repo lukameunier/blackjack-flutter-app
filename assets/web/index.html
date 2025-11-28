@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Physics</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: transparent; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+        }
+    }
+</script>
+<script type="module">
+    import * as THREE from 'three';
+    import * as CANNON from 'cannon-es';
+    import { DragControls } from 'three/addons/controls/DragControls.js';
+
+    // --- Global variables ---
+    let scene, camera, renderer, physicsWorld, dragControls;
+    const objectsToUpdate = [];
+    let isDraggingHead = false;
+    let initialCameraQuaternion;
+
+    // --- Card focus variables ---
+    let focusedCard = null;
+    let returnInfo = null;
+    let isReturningCard = false;
+    let isCardInWorld = true; // body de la carte focus présent dans le monde physique ?
+
+    const FIXED_TIME_STEP = 1 / 120;
+    const MAX_SUBSTEPS = 5;
+
+    // Sol / plateau
+    const FLOOR_Y = -0.1; // haut du plateau visuel
+    const CARD_HALF_EXTENTS = { x: 0.4, y: 0.6, z: 0.02 }; // géométrie du box
+
+    function enforceFloor(body) {
+        const q = body.quaternion;
+        const x = q.x, y = q.y, z = q.z, w = q.w;
+        const hx = CARD_HALF_EXTENTS.x;
+        const hy = CARD_HALF_EXTENTS.y;
+        const hz = CARD_HALF_EXTENTS.z;
+
+        // Matrice de rotation, 2e ligne
+        const m10 = 2 * (x * y + w * z);
+        const m11 = 1 - 2 * (x * x + z * z);
+        const m12 = 2 * (y * z - x * w);
+
+        const depth = Math.abs(m10) * hx + Math.abs(m11) * hy + Math.abs(m12) * hz;
+        const minY = body.position.y - depth;
+
+        if (minY < FLOOR_Y) {
+            const correction = FLOOR_Y - minY;
+            body.position.y += correction;
+            if (body.velocity.y < 0) body.velocity.y = 0;
+        }
+    }
+
+    function init() {
+        // --- THREE ---
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setClearColor(0x000000, 0);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        scene.background = new THREE.Color(0x000000);
+        const light = new THREE.DirectionalLight(0xffffff, 3);
+        light.position.set(1, 3, 2).normalize();
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+        camera.position.set(0, 6, 6);
+        camera.lookAt(0, 0, 0);
+        initialCameraQuaternion = camera.quaternion.clone();
+
+        // --- CANNON ---
+        physicsWorld = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+        physicsWorld.broadphase = new CANNON.SAPBroadphase(physicsWorld);
+        physicsWorld.allowSleep = true;
+        physicsWorld.solver.iterations = 20;
+        physicsWorld.solver.tolerance = 0.001;
+
+        const defaultMaterial = new CANNON.Material('default');
+        const defaultContactMaterial = new CANNON.ContactMaterial(defaultMaterial, defaultMaterial, {
+            friction: 0.4,
+            restitution: 0.0,
+            contactEquationStiffness: 1e6,
+            contactEquationRelaxation: 4
+        });
+        physicsWorld.defaultContactMaterial = defaultContactMaterial;
+
+        // Plateau visuel
+        const boardRadius = 5;
+        const boardHeight = 0.2;
+        const boardVisual = new THREE.Mesh(
+            new THREE.CylinderGeometry(boardRadius, boardRadius, boardHeight, 64),
+            new THREE.MeshStandardMaterial({ color: 0x808080 })
+        );
+        boardVisual.position.y = -boardHeight;
+        scene.add(boardVisual);
+
+        // Sol physique
+        const groundBody = new CANNON.Body({ mass: 0, material: defaultMaterial });
+        groundBody.addShape(new CANNON.Plane());
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        groundBody.position.set(0, FLOOR_Y, 0);
+        physicsWorld.addBody(groundBody);
+
+        // Cartes
+        const visualMeshes = [];
+        const cardGeometry = new THREE.BoxGeometry(
+            CARD_HALF_EXTENTS.x * 2,
+            CARD_HALF_EXTENTS.y * 2,
+            CARD_HALF_EXTENTS.z * 2
+        );
+        const cardShape = new CANNON.Box(
+            new CANNON.Vec3(CARD_HALF_EXTENTS.x, CARD_HALF_EXTENTS.y, CARD_HALF_EXTENTS.z)
+        );
+
+        for (let i = 0; i < 3; i++) {
+            const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+            const mesh = new THREE.Mesh(cardGeometry, material);
+
+            const body = new CANNON.Body({ mass: 0.3, shape: cardShape, material: defaultMaterial });
+            body.linearDamping = 0.2;
+            body.angularDamping = 0.2;
+            body.ccdMotionThreshold = 0.01;
+            body.ccdSweptSphereRadius = 0.3;
+
+            objectsToUpdate.push({ mesh, body });
+            visualMeshes.push(mesh);
+            scene.add(mesh);
+            physicsWorld.addBody(body);
+        }
+
+        resetScene();
+        setupHeadTurnControls();
+
+        // Drag des cartes sur la table
+        dragControls = new DragControls(visualMeshes, camera, renderer.domElement);
+        dragControls.addEventListener('dragstart', () => { isHeadTurnEnabled = false; });
+        dragControls.addEventListener('drag', event => {
+            const object = objectsToUpdate.find(o => o.mesh === event.object);
+            if (object) {
+                object.body.wakeUp();
+                object.body.position.copy(event.object.position);
+                object.body.velocity.set(0, 0, 0);
+                object.body.angularVelocity.set(0, 0, 0);
+                enforceFloor(object.body);
+            }
+        });
+        dragControls.addEventListener('dragend', () => { isHeadTurnEnabled = true; });
+
+        // Clic pour focus / defocus
+        renderer.domElement.addEventListener('click', onCanvasClick);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    let isHeadTurnEnabled = true;
+
+    function setupHeadTurnControls() {
+        let previousPointer = { x: 0, y: 0 };
+
+        renderer.domElement.addEventListener('pointerdown', (event) => {
+            if (event.target === renderer.domElement) {
+                isDraggingHead = true;
+                previousPointer = { x: event.clientX, y: event.clientY };
+            }
+        });
+
+        renderer.domElement.addEventListener('pointermove', (event) => {
+            if (!isDraggingHead || !isHeadTurnEnabled) return;
+
+            const deltaX = event.clientX - previousPointer.x;
+            const deltaY = event.clientY - previousPointer.y;
+            previousPointer = { x: event.clientX, y: event.clientY };
+
+            const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+            euler.setFromQuaternion(camera.quaternion, 'YXZ');
+
+            euler.y += deltaX * 0.008;
+            euler.x += deltaY * 0.008;
+
+            const maxRotationX = 0.4;
+            const maxRotationY = Math.PI / 4;
+
+            const initialEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+            initialEuler.setFromQuaternion(initialCameraQuaternion, 'YXZ');
+
+            euler.x = THREE.MathUtils.clamp(euler.x, initialEuler.x - maxRotationX, initialEuler.x + maxRotationX);
+            euler.y = THREE.MathUtils.clamp(euler.y, initialEuler.y - maxRotationY, initialEuler.y + maxRotationY);
+
+            camera.quaternion.setFromEuler(euler);
+        });
+
+        window.addEventListener('pointerup', () => { isDraggingHead = false; });
+    }
+
+    function onCanvasClick(event) {
+        // Si une carte est déjà focus → on la renvoie
+        if (focusedCard) {
+            returnFocusedCard();
+            return;
+        }
+
+        const pointer = new THREE.Vector2();
+        pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+        pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(pointer, camera);
+
+        const visualMeshes = objectsToUpdate.map(o => o.mesh);
+        const intersects = raycaster.intersectObjects(visualMeshes);
+
+        if (intersects.length > 0) {
+            const objectToFocus = objectsToUpdate.find(o => o.mesh === intersects[0].object);
+            if (objectToFocus) {
+                focusOnCard(objectToFocus);
+            }
+        }
+    }
+
+    function focusOnCard(cardObject) {
+        if (focusedCard) return;
+        focusedCard = cardObject;
+        isReturningCard = false;
+        isHeadTurnEnabled = false;
+        dragControls.enabled = false;
+
+        // Sauvegarde de la position/orientation de retour (depuis le mesh)
+        returnInfo = {
+            position: cardObject.mesh.position.clone(),
+            quaternion: cardObject.mesh.quaternion.clone()
+        };
+
+        // Figer le body dans la physique
+        cardObject.body.type = CANNON.Body.STATIC;
+        cardObject.body.velocity.set(0, 0, 0);
+        cardObject.body.angularVelocity.set(0, 0, 0);
+        cardObject.body.wakeUp();
+    }
+
+    function returnFocusedCard() {
+        if (!focusedCard || isReturningCard) return;
+        isReturningCard = true;
+    }
+
+    window.resetScene = function () {
+        focusedCard = null;
+        returnInfo = null;
+        isReturningCard = false;
+        isHeadTurnEnabled = true;
+        if (dragControls) dragControls.enabled = true;
+
+        camera.position.set(0, 6, 6);
+        if (initialCameraQuaternion) camera.quaternion.copy(initialCameraQuaternion);
+
+        objectsToUpdate.forEach((object, i) => {
+            object.body.type = CANNON.Body.DYNAMIC;
+            object.body.position.set(-1.5 + i * 1.5, FLOOR_Y + 0.2, 0);
+            object.mesh.position.copy(object.body.position);
+
+            const quat = new CANNON.Quaternion();
+            quat.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
+            object.body.quaternion.copy(quat);
+            object.mesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
+
+            object.body.velocity.set(0, 0, 0);
+            object.body.angularVelocity.set(0, 0, 0);
+            object.body.wakeUp();
+            enforceFloor(object.body);
+        });
+    };
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+        const deltaTime = clock.getDelta();
+        physicsWorld.step(FIXED_TIME_STEP, deltaTime, MAX_SUBSTEPS);
+
+        if (focusedCard) {
+            if (isReturningCard) {
+                // 🔙 Animation de retour (DEJA OK)
+                focusedCard.mesh.position.lerp(returnInfo.position, 0.2);
+                focusedCard.mesh.quaternion.slerp(returnInfo.quaternion, 0.2);
+
+                if (focusedCard.mesh.position.distanceTo(returnInfo.position) < 0.01) {
+                    focusedCard.body.type = CANNON.Body.DYNAMIC;
+                    focusedCard.body.position.copy(returnInfo.position);
+                    focusedCard.body.quaternion.copy(returnInfo.quaternion);
+                    focusedCard.body.velocity.set(0, 0, 0);
+                    focusedCard.body.angularVelocity.set(0, 0, 0);
+                    focusedCard.body.wakeUp();
+
+                    focusedCard = null;
+                    returnInfo = null;
+                    isReturningCard = false;
+                    isHeadTurnEnabled = true;
+                    dragControls.enabled = true;
+                }
+            } else {
+                // 🔜 Animation d'ENTRÉE vers la caméra (lerp + slerp)
+                const offset = new THREE.Vector3(0, -0.5, -2.5); // position cible devant la cam
+                const targetPosition = offset.clone().applyMatrix4(camera.matrixWorld);
+                focusedCard.mesh.position.lerp(targetPosition, 0.5);
+
+                const targetQuaternion = new THREE.Quaternion();
+                camera.getWorldQuaternion(targetQuaternion);
+                focusedCard.mesh.quaternion.slerp(targetQuaternion, 0.5);
+            }
+        }
+
+
+        // Mise à jour des autres objets physiques
+        for (const object of objectsToUpdate) {
+            if (object === focusedCard) continue; // ne touche pas la carte focus
+
+            enforceFloor(object.body);
+            object.mesh.position.copy(object.body.position);
+            object.mesh.quaternion.copy(object.body.quaternion);
+        }
+
+        // Retour progressif de la tête vers l'orientation initiale si on ne tourne plus
+        if (!isDraggingHead && initialCameraQuaternion && !focusedCard) {
+            camera.quaternion.slerp(initialCameraQuaternion, 0.1);
+        }
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+    }
+
+    init();
+    animate();
+</script>
+</body>
+</html>
