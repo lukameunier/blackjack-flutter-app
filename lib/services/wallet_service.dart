@@ -1,16 +1,28 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:blackjack/services/database_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WalletService {
-  static const String _walletKey = 'user_wallet';
-  static const double _defaultWalletAmount = 1000.0;
+  WalletService({DatabaseService? databaseService})
+    : _dbService = databaseService ?? DatabaseService();
+
+  final SupabaseClient _client = Supabase.instance.client;
+  final DatabaseService _dbService;
 
   Future<double> loadWallet() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_walletKey) ?? _defaultWalletAmount;
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Cannot load wallet: no authenticated user');
+    }
+
+    return _dbService.getUserWallet(user.id);
   }
 
   Future<void> saveWallet(double amount) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setDouble(_walletKey, amount);
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Cannot save wallet: no authenticated user');
+    }
+
+    await _dbService.updateUserWallet(user.id, amount);
   }
 }
