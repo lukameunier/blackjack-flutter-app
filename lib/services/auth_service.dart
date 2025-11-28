@@ -1,69 +1,70 @@
-import 'package:blackjack/main.dart';
 import 'package:blackjack/services/database_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService with ChangeNotifier {
+  final SupabaseClient _client = Supabase.instance.client;
   final DatabaseService _dbService = DatabaseService();
 
   Future<void> signUp(String email, String password, String username) async {
     try {
-      final response = await supabase.auth.signUp(
+      final AuthResponse response = await _client.auth.signUp(
         email: email,
         password: password,
+        data: {'username': username},
       );
 
-      if (response.user != null) {
-        // On utilise maintenant le DatabaseService pour créer le profil
-        await _dbService.createProfile(response.user!.id, username);
-      } else {
-        throw const AuthException(
-            'User already exists or something went wrong.');
+      final user = response.user;
+      if (user == null) {
+        throw AuthException('No user returned by Supabase');
       }
+
+      // Création du profil lié à l’utilisateur
+      await _dbService.createProfile(user.id, username);
+
+      notifyListeners();
     } on AuthException catch (e) {
-      debugPrint('AuthService (signUp) Error: ${e.message}');
+      debugPrint('AuthService (signUp) AuthException: ${e.message}');
       rethrow;
     } catch (e) {
-      debugPrint('AuthService (signUp) General Error: $e');
+      debugPrint('AuthService (signUp) Error: $e');
       rethrow;
     }
   }
 
   Future<void> signIn(String email, String password) async {
     try {
-      await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      await _client.auth.signInWithPassword(email: email, password: password);
+
+      notifyListeners();
     } on AuthException catch (e) {
-      debugPrint('AuthService (signIn) Error: ${e.message}');
+      debugPrint('AuthService (signIn) AuthException: ${e.message}');
       rethrow;
     } catch (e) {
-      debugPrint('AuthService (signIn) General Error: $e');
+      debugPrint('AuthService (signIn) Error: $e');
       rethrow;
     }
   }
 
   Future<void> signOut() async {
     try {
-      await supabase.auth.signOut();
+      await _client.auth.signOut();
     } catch (e) {
       debugPrint('AuthService (signOut) Error: $e');
-      rethrow;
+    } finally {
+      // Dans tous les cas, on notifie pour que l’UI repasse sur LoginScreen
+      notifyListeners();
     }
   }
 
   Future<Map<String, dynamic>?> getCurrentProfile() async {
-    final user = supabase.auth.currentUser;
+    final user = _client.auth.currentUser;
     if (user == null) return null;
 
-    // On utilise maintenant le DatabaseService pour récupérer le profil
     return _dbService.getProfile(user.id);
   }
 
   bool isLoggedIn() {
-    return supabase.auth.currentUser != null;
+    return _client.auth.currentUser != null;
   }
-
-  // La fonction updateUsername sera aussi déplacée dans le DatabaseService plus tard
 }

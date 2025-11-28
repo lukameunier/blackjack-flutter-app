@@ -1,29 +1,23 @@
 import 'package:blackjack/models/board.dart';
-import 'package:blackjack/services/auth_service.dart';
 import 'package:blackjack/services/wallet_service.dart';
 import 'package:flutter/foundation.dart';
 
 class HomePagePresenter with ChangeNotifier {
   HomePagePresenter({
-    AuthService? authService,
+    String? playerName,
     WalletService? walletService,
     bool testMode = false,
-  })  : _authService = authService ?? AuthService(),
-        _walletService = walletService ?? WalletService(),
-        _board = Board(testMode: testMode);
+  })  : _walletService = walletService ?? WalletService(),
+        _board = Board(testMode: testMode) {
+    _board.player.name = playerName ?? 'Player';
+  }
 
   final Board _board;
-  final AuthService _authService;
   final WalletService _walletService;
 
   Board get board => _board;
 
   Future<void> init() async {
-    final profile = await _authService.getCurrentProfile();
-    if (profile != null && profile['username'] != null) {
-      board.player.name = profile['username'];
-    }
-
     final amount = await _walletService.loadWallet();
     board.player.wallet = amount;
     notifyListeners();

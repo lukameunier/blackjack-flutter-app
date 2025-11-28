@@ -1,9 +1,11 @@
-import 'package:blackjack/main.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Ce service centralise TOUS les appels à la base de données Supabase (sauf l'auth).
-/// C'est notre "Repository".
+/// Service qui gère TOUTES les interactions avec la base Supabase
+/// (hors authentification).
 class DatabaseService {
+  final SupabaseClient _client = Supabase.instance.client;
+
   Future<void> createProfile(String userId, String username) async {
     final updates = {
       'id': userId,
@@ -12,21 +14,21 @@ class DatabaseService {
     };
 
     try {
-      await supabase.from('profiles').upsert(updates);
+      await _client.from('profiles').upsert(updates);
     } catch (e) {
       debugPrint('DatabaseService (createProfile) Error: $e');
       rethrow;
     }
   }
 
-  /// Récupère le profil d'un utilisateur par son ID.
   Future<Map<String, dynamic>?> getProfile(String userId) async {
     try {
-      final data = await supabase
+      final data = await _client
           .from('profiles')
           .select()
           .eq('id', userId)
-          .single();
+          .maybeSingle(); // null si aucun profil
+
       return data;
     } catch (e) {
       debugPrint('DatabaseService (getProfile) Error: $e');
@@ -34,7 +36,8 @@ class DatabaseService {
     }
   }
 
-  // --- On ajoutera ici les autres fonctions ---
-  // Future<void> updateUserWallet(String userId, double newAmount) async { ... }
-  // ... etc.
+  // Tu pourras rajouter ici d’autres méthodes plus tard :
+  // - updateUserWallet
+  // - historique des parties
+  // - etc.
 }
