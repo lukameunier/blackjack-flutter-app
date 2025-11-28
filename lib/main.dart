@@ -1,5 +1,6 @@
 import 'package:blackjack/presenters/home_page_presenter.dart';
 import 'package:blackjack/services/auth_service.dart';
+import 'package:blackjack/services/database_service.dart';
 import 'package:blackjack/supabase_credentials.dart';
 import 'package:blackjack/widgets/animated_wallet.dart';
 import 'package:blackjack/widgets/login_screen.dart';
@@ -26,8 +27,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => AuthService(),
+    return MultiProvider(
+      providers: [
+        Provider(create: (_) => DatabaseService()),
+        ChangeNotifierProvider(create: (_) => AuthService()),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Blackjack',

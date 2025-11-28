@@ -1,6 +1,6 @@
-import 'package:blackjack/main.dart';
+import 'package:blackjack/services/auth_service.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,45 +9,20 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  bool _isLoading = false;
-  final _nameController = TextEditingController();
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _tabController.dispose();
     super.dispose();
-  }
-
-  Future<void> _login() async {
-    if (_nameController.text.isEmpty) {
-      // Optionnel : Afficher une erreur si le nom est vide
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    await Future.delayed(const Duration(seconds: 1));
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', true);
-    final String userName = _nameController.text;
-    await prefs.setString('userName', userName);
-
-    if (mounted) {
-      // On navigue directement en construisant la page avec le bon nom
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MyHomePage(userName: userName),
-        ),
-      );
-    }
   }
 
   @override
@@ -56,45 +31,139 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         title: const Text('Welcome to Blackjack'),
         centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Sign In'),
+            Tab(text: 'Sign Up'),
+          ],
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          _AuthForm(isSignUp: false),
+          _AuthForm(isSignUp: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthForm extends StatefulWidget {
+  const _AuthForm({required this.isSignUp});
+
+  final bool isSignUp;
+
+  @override
+  State<_AuthForm> createState() => _AuthFormState();
+}
+
+class _AuthFormState extends State<_AuthForm> {
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      if (widget.isSignUp) {
+        await authService.signUp(
+          _emailController.text,
+          _passwordController.text,
+          _usernameController.text,
+        );
+        // La navigation est maintenant gérée par AuthStateListener
+      } else {
+        await authService.signIn(
+          _emailController.text,
+          _passwordController.text,
+        );
+      }
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Your Name',
-                border: OutlineInputBorder(),
+            if (widget.isSignUp)
+              TextFormField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter a username' : null,
               ),
-              keyboardType: TextInputType.name,
-            ),
-            const SizedBox(height: 16),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'Email (optional)',
+            if (widget.isSignUp) const SizedBox(height: 16),
+            TextFormField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
+              validator: (value) =>
+                  value!.isEmpty || !value.contains('@')
+                      ? 'Please enter a valid email'
+                      : null,
             ),
             const SizedBox(height: 16),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'Password (optional)',
+            TextFormField(
+              controller: _passwordController,
+              decoration: const InputDecoration(
+                labelText: 'Password',
                 border: OutlineInputBorder(),
               ),
               obscureText: true,
+              validator: (value) =>
+                  value!.length < 6 ? 'Password must be at least 6 characters' : null,
             ),
             const SizedBox(height: 24),
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 50),
                     ),
-                    child: const Text('Login'),
+                    child: Text(widget.isSignUp ? 'Sign Up' : 'Sign In'),
                   ),
           ],
         ),
