@@ -7,9 +7,11 @@ class HomePagePresenter with ChangeNotifier {
     String? playerName,
     WalletService? walletService,
     bool testMode = false,
-  })  : _walletService = walletService ?? WalletService(),
-        _board = Board(testMode: testMode) {
+  }) : _walletService = walletService ?? WalletService(),
+       _board = Board(testMode: testMode) {
     _board.player.name = playerName ?? 'Player';
+    // On charge le wallet depuis Supabase dès la création du presenter
+    init();
   }
 
   final Board _board;
@@ -18,9 +20,14 @@ class HomePagePresenter with ChangeNotifier {
   Board get board => _board;
 
   Future<void> init() async {
-    final amount = await _walletService.loadWallet();
-    board.player.wallet = amount;
-    notifyListeners();
+    try {
+      final amount = await _walletService.loadWallet();
+      board.player.wallet = amount;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('HomePagePresenter (init) Error while loading wallet: $e');
+      // En cas d’erreur, on laisse le wallet tel quel (ex: 0.0)
+    }
   }
 
   Future<void> _saveWallet() async {

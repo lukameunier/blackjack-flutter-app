@@ -2,7 +2,7 @@ import 'card.dart';
 import 'hand.dart';
 
 class Player {
-  Player({this.name = 'Player', this.wallet = 1000.0});
+  Player({this.name = 'Player', this.wallet = 0.0});
 
   String name;
   double wallet;
@@ -13,6 +13,7 @@ class Player {
   Hand get activeHand => hands[activeHandIndex];
 
   int get score => activeHand.score;
+
   bool get isBlackjack => hands.isNotEmpty && hands.first.isNaturalBlackjack;
 
   void addCard(Card card) {

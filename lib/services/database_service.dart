@@ -1,16 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Service qui centralise les appels à la base Supabase (hors auth).
 class DatabaseService {
-  static const double _defaultWalletAmount = 1000.0;
   final SupabaseClient _client = Supabase.instance.client;
 
   Future<void> createProfile(String userId, String username) async {
     final updates = {
       'id': userId,
       'username': username,
-      'wallet': _defaultWalletAmount,
       'created_at': DateTime.now().toIso8601String(),
     };
 
@@ -28,7 +25,7 @@ class DatabaseService {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .maybeSingle(); // null si rien
+          .maybeSingle();
 
       return data;
     } catch (e) {
@@ -41,13 +38,16 @@ class DatabaseService {
     try {
       final profile = await getProfile(userId);
 
-      if (profile == null || profile['wallet'] == null) {
-        // Si jamais le wallet est null, on réinitialise à la valeur par défaut
-        await updateUserWallet(userId, _defaultWalletAmount);
-        return _defaultWalletAmount;
+      if (profile == null) {
+        throw Exception('Profile not found for user $userId');
       }
 
-      return (profile['wallet'] as num).toDouble();
+      final wallet = profile['wallet'];
+      if (wallet == null) {
+        throw Exception('Wallet is missing in profile (DB inconsistency)');
+      }
+
+      return (wallet as num).toDouble();
     } catch (e) {
       debugPrint('DatabaseService (getUserWallet) Error: $e');
       rethrow;
